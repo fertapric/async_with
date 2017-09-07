@@ -1,0 +1,23 @@
+language: elixir
+matrix:
+  include:
+    - otp_release: 19.0
+      elixir: 1.5
+    - otp_release: 19.1
+      elixir: 1.5
+    - otp_release: 19.2
+      elixir: 1.5
+    - otp_release: 19.3
+      elixir: 1.5
+    - otp_release: 20.0
+      elixir: 1.5
+install:
+  - mix local.hex --force
+  - mix local.rebar --force
+  - mix deps.get
+script:
+  - mix test --cover
+  - mix credo
+notifications:
+  email:
+    - fertapric@gmail.com
