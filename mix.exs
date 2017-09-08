@@ -14,7 +14,7 @@ defmodule AsyncWith.Mixfile do
       preferred_cli_env: [docs: :docs, inch: :docs],
       description: description(),
       docs: docs(),
-      test_coverage: [tool: AsyncWith.Cover, ignore_modules: [AsyncWith.DOT]]
+      test_coverage: [tool: AsyncWith.Cover]
     ]
   end
 
