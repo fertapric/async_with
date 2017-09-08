@@ -108,10 +108,6 @@ Documentation is available at https://hexdocs.pm/async_with
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/fertapric/async_with. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
 
-### Development tools
-
-Developing and debugging the dependency graph can be quite complicated without visual support. To help on that task, the project ships with [`AsyncWith.DOT`](test/support/dot.ex), a tool that exports the dependency graph in [DOT](https://en.wikipedia.org/wiki/DOT_(graph_description_language)) and PNG formats.
-
 ### Running tests
 
 Clone the repo and fetch its dependencies:

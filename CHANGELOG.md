@@ -8,4 +8,6 @@
 
 ### 3. Soft deprecations (no warnings emitted)
 
+  * [DOT] Deprecate the `DOT` module.
+
 ### 4. Deprecations
