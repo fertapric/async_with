@@ -8,7 +8,6 @@ defmodule AsyncWith.ClauseTest do
   test "one_from_ast/1 converts bare expressions into assignments" do
     ast = quote(do: {:ok, a})
     expected_clause = %Clause{
-      ast: ast,
       operator: :=,
       left: Macro.var(:_, nil),
       right: ast,
@@ -23,7 +22,6 @@ defmodule AsyncWith.ClauseTest do
   test "one_from_ast/1 with assignments" do
     ast = quote(do: {^ok, a} = {:ok, b})
     expected_clause = %Clause{
-      ast: ast,
       operator: :=,
       left: quote(do: {^ok, a}),
       right: quote(do: {:ok, b}),
@@ -38,7 +36,6 @@ defmodule AsyncWith.ClauseTest do
   test "one_from_ast/1 with guards" do
     ast = quote(do: {:ok, a} when is_integer(a) <- {:ok, b})
     expected_clause = %Clause{
-      ast: ast,
       operator: :<-,
       left: quote(do: {:ok, a} when is_integer(a)),
       right: quote(do: {:ok, b}),
@@ -53,7 +50,6 @@ defmodule AsyncWith.ClauseTest do
   test "one_from_ast/1 with ignored and unbound variables" do
     ast = quote(do: {_ok, _} <- {:ok, b})
     expected_clause = %Clause{
-      ast: ast,
       operator: :<-,
       left: quote(do: {_ok, _}),
       right: quote(do: {:ok, b}),
@@ -84,7 +80,6 @@ defmodule AsyncWith.ClauseTest do
 
     expected_clauses = [
       %Clause{
-        ast: quote(do: {^ok, a} <- echo(b, c)),
         operator: :<-,
         left: quote(do: {^ok, unquote(renamed_var_a)}),
         right: quote(do: echo(b, c)),
@@ -93,7 +88,6 @@ defmodule AsyncWith.ClauseTest do
         guard_vars: MapSet.new()
       },
       %Clause{
-        ast: quote(do: {:ok, b} <- echo(m)),
         operator: :<-,
         left: quote(do: {:ok, unquote(renamed_var_b)}),
         right: quote(do: echo(m)),
@@ -102,7 +96,6 @@ defmodule AsyncWith.ClauseTest do
         guard_vars: MapSet.new()
       },
       %Clause{
-        ast: quote(do: {:ok, a} <- echo(a)),
         operator: :<-,
         left: quote(do: {:ok, a}),
         right: quote(do: echo(unquote(renamed_var_a))),
@@ -111,7 +104,6 @@ defmodule AsyncWith.ClauseTest do
         guard_vars: MapSet.new()
       },
       %Clause{
-        ast: quote(do: {:ok, b, m} <- echo(b)),
         operator: :<-,
         left: quote(do: {:ok, b, m}),
         right: quote(do: echo(unquote(renamed_var_b))),
@@ -143,7 +135,6 @@ defmodule AsyncWith.ClauseTest do
 
     expected_clauses = [
       %Clause{
-        ast: quote(do: {^ok, a} when is_atom(a) <- echo(b, c)),
         operator: :<-,
         left: quote(do: {^ok, unquote(renamed_var_a)} when is_atom(unquote(renamed_var_a))),
         right: quote(do: echo(b, c)),
@@ -152,7 +143,6 @@ defmodule AsyncWith.ClauseTest do
         guard_vars: MapSet.new([renamed_a])
       },
       %Clause{
-        ast: quote(do: {:ok, b} <- echo(m)),
         operator: :<-,
         left: quote(do: {:ok, unquote(renamed_var_b)}),
         right: quote(do: echo(m)),
@@ -161,7 +151,6 @@ defmodule AsyncWith.ClauseTest do
         guard_vars: MapSet.new()
       },
       %Clause{
-        ast: quote(do: {:ok, a} <- echo(a)),
         operator: :<-,
         left: quote(do: {:ok, a}),
         right: quote(do: echo(unquote(renamed_var_a))),
@@ -170,7 +159,6 @@ defmodule AsyncWith.ClauseTest do
         guard_vars: MapSet.new()
       },
       %Clause{
-        ast: quote(do: {:ok, b, m} <- echo(b)),
         operator: :<-,
         left: quote(do: {:ok, b, m}),
         right: quote(do: echo(unquote(renamed_var_b))),
@@ -193,7 +181,6 @@ defmodule AsyncWith.ClauseTest do
 
     expected_clauses = [
       %Clause{
-        ast: quote(do: {_ok, _} <- echo(b, c)),
         operator: :<-,
         left: quote(do: {unquote(renamed_var__ok), _}),
         right: quote(do: echo(b, c)),

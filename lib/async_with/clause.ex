@@ -13,7 +13,6 @@ defmodule AsyncWith.Clause do
 
   Each clause is mapped into the following Elixir struct:
 
-    * `ast` - The original Abstract Syntax Tree of the clause.
     * `operator` - Either match `:=` or send `:<-` operators.
     * `left` - The left-hand side of the clause.
     * `right` - The right-hand side of the clause.
@@ -24,7 +23,6 @@ defmodule AsyncWith.Clause do
   As example, the following clause `{:ok, {^a, b}} when is_binary(b) <- echo(c, d)` would
   be mapped to an `AsyncWith.Clause` with the following attributes:
 
-    * `ast` would be the AST representation of `{:ok, {^a, b}} <- echo(c, d)}`.
     * `operator` would be `:<-`.
     * `left` would be the AST representation of `{:ok, {^a, b}}`.
     * `right` would be the AST representation of `echo(c, d)`.
@@ -37,7 +35,6 @@ defmodule AsyncWith.Clause do
   alias __MODULE__
 
   @enforce_keys [
-    :ast,
     :operator,
     :left,
     :right,
@@ -47,7 +44,6 @@ defmodule AsyncWith.Clause do
   ]
 
   defstruct [
-    :ast,
     :operator,
     :left,
     :right,
@@ -57,7 +53,6 @@ defmodule AsyncWith.Clause do
   ]
 
   @type t :: %Clause{
-    ast: Macro.t,
     operator: :<- | :=,
     left: Macro.t,
     right: Macro.t,
@@ -74,8 +69,6 @@ defmodule AsyncWith.Clause do
       iex> ast = quote(do: {^ok, a} <- echo(b, c))
       iex> Clause.one_from_ast(ast)
       %Clause{
-        ast: {:<-, [], [{{:^, [], [{:ok, [], __MODULE__}]}, {:a, [], __MODULE__}},
-                        {:echo, [], [{:b, [], __MODULE__}, {:c, [], __MODULE__}]}]},
         operator: :<-,
         left: {{:^, [], [{:ok, [], __MODULE__}]}, {:a, [], __MODULE__}},
         right: {:echo, [], [{:b, [], __MODULE__}, {:c, [], __MODULE__}]},
@@ -87,28 +80,18 @@ defmodule AsyncWith.Clause do
   """
   @spec one_from_ast(Macro.t) :: t
   def one_from_ast(ast)
-
-  def one_from_ast({:=, _meta, [left, right]} = ast) do
-    do_one_from_ast(ast, :=, left, right)
-  end
-
-  def one_from_ast({:<-, _meta, [left, right]} = ast) do
-    do_one_from_ast(ast, :<-, left, right)
-  end
-
+  def one_from_ast({:=, _meta, [left, right]}), do: do_one_from_ast(:=, left, right)
+  def one_from_ast({:<-, _meta, [left, right]}), do: do_one_from_ast(:<-, left, right)
   # Bare expressions are converted to clauses following the pattern `_ = <bare expression>`
-  def one_from_ast(ast) do
-    do_one_from_ast(ast, :=, Macro.var(:_, nil), ast)
-  end
+  def one_from_ast(ast), do: do_one_from_ast(:=, Macro.var(:_, nil), ast)
 
-  defp do_one_from_ast(ast, operator, left, right) do
+  defp do_one_from_ast(operator, left, right) do
     guard_vars = AsyncWith.Macro.get_guard_vars(left)
     pinned_vars = AsyncWith.Macro.get_pinned_vars(left)
     defined_vars = AsyncWith.Macro.get_vars(left) -- pinned_vars
     used_vars = AsyncWith.Macro.get_vars(right) ++ pinned_vars
 
     %Clause{
-      ast: ast,
       operator: operator,
       left: left,
       right: right,
@@ -201,7 +184,6 @@ defmodule AsyncWith.Clause do
 
   defp rename_used_vars(clause, var_renamings) do
     %Clause{
-      ast: clause.ast,
       operator: clause.operator,
       left: AsyncWith.Macro.rename_pinned_vars(clause.left, var_renamings),
       right: AsyncWith.Macro.rename_vars(clause.right, var_renamings),
@@ -213,7 +195,6 @@ defmodule AsyncWith.Clause do
 
   defp rename_defined_vars(clause, var_renamings) do
     %Clause{
-      ast: clause.ast,
       operator: clause.operator,
       left: AsyncWith.Macro.rename_vars(clause.left, var_renamings),
       right: clause.right,
