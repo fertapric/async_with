@@ -556,6 +556,28 @@ defmodule AsyncWithTest do
     assert finished_at - started_at < 95
   end
 
+  test "optimizes the execution (2)" do
+    {:ok, agent} = Agent.start_link(fn -> 0 end)
+
+    task = Task.async(fn ->
+      :timer.sleep(1)
+      Agent.get(agent, &(&1))
+    end)
+
+    result =
+      async with {:ok, a} <- echo("a"),
+                 {:ok, b} <- delay(20, echo("b")),
+                 {:ok, c} <- {Agent.update(agent, fn _ -> 1 end), "c(#{a})"},
+                 {:ok, d} <- echo("d(#{a}, #{b})") do
+        Enum.join([a, b, c, d], " ")
+      end
+
+    assert Task.await(task) == 1 # c should not wait for b
+    assert result == "a b c(a) d(a, b)"
+
+    :ok = Agent.stop(agent)
+  end
+
   test "errors with the same internal representation are not misinterpreted" do
     result =
       async with {:ok, a} <- echo("a"),
