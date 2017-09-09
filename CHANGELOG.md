@@ -4,7 +4,11 @@
 
 ### 1. Enhancements
 
+  * [async with] Optimize implementation
+
 ### 2. Bug fixes
+
+  * [async with] Ensure asynchronous execution of all clauses as soon as their dependencies are fulfilled
 
 ### 3. Soft deprecations (no warnings emitted)
 
