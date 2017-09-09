@@ -7,7 +7,7 @@ defmodule AsyncWith.Application do
     import Supervisor.Spec
 
     children = [
-      supervisor(Batch.Supervisor, [[name: AsyncWith.BatchSupervisor]])
+      supervisor(Task.Supervisor, [[name: AsyncWith.TaskSupervisor]])
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: AsyncWith.Supervisor)

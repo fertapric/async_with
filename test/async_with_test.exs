@@ -21,20 +21,15 @@ defmodule AsyncWithTest do
     :error
   end
 
-  defp raise_oops(_value \\ nil) do
+  defp raise_oops(_value) do
     raise("oops")
-  end
-
-  defp delayed_raise_oops(delay, _value) do
-    :timer.sleep(delay)
-    raise_oops()
   end
 
   defp pid(_value \\ nil) do
     {:ok, self()}
   end
 
-  defp pid_registry(agent, registry_name) do
+  defp register_pid(agent, registry_name) do
     pid = self()
     Agent.update(agent, &Map.merge(&1, %{registry_name => pid}))
     :ok
@@ -380,45 +375,30 @@ defmodule AsyncWithTest do
     assert result == %RuntimeError{message: "oops"}
   end
 
-  test "accumulates timeouts to avoid undesired timeout errors with large graphs" do
+  test "returns `{:exit, :timeout}` on timeout" do
     result =
-      async with {:ok, a} <- delay(@async_with_timeout - 10, echo("a")),
-                 {:ok, b} <- delay(@async_with_timeout - 10, echo("b")),
-                 {:ok, c} <- delay(@async_with_timeout - 10, echo("c")),
-                 {:ok, d} <- delay(@async_with_timeout - 10, echo("d(#{a})")),
-                 {:ok, e} <- delay(@async_with_timeout - 10, echo("e(#{b})")),
-                 {:ok, f} <- delay(@async_with_timeout - 10, echo("f(#{b})")),
-                 {:ok, g} <- delay(@async_with_timeout - 10, echo("g(#{e})")) do
-        Enum.join([a, b, c, d, e, f, g], " ")
-      end
-
-    assert result == "a b c d(a) e(b) f(b) g(e(b))"
-  end
-
-  test "returns `{:exit, :timeout}` when one of the tasks times out" do
-    result =
-      async with {:ok, a} <- delay(@async_with_timeout - 40, echo("a")),
-                 {:ok, b} <- delay(@async_with_timeout - 40, echo("b")),
-                 {:ok, c} <- delay(@async_with_timeout - 10, echo("c")),
-                 {:ok, d} <- delay(@async_with_timeout - 40, echo("d(#{a})")),
+      async with {:ok, a} <- echo("a"),
+                 {:ok, b} <- echo("b"),
+                 {:ok, c} <- echo("c"),
+                 {:ok, d} <- echo("d(#{a})"),
                  {:ok, e} <- delay(@async_with_timeout + 10, echo("e(#{b})")),
-                 {:ok, f} <- delay(@async_with_timeout - 40, echo("f(#{b})")),
-                 {:ok, g} <- delay(@async_with_timeout - 40, echo("g(#{e})")) do
+                 {:ok, f} <- echo("f(#{b})"),
+                 {:ok, g} <- echo("g(#{e})") do
         Enum.join([a, b, c, d, e, f, g], " ")
       end
 
     assert result == {:exit, :timeout}
   end
 
-  test "executes else conditions when one of the tasks times out" do
+  test "executes else conditions on timeout" do
     result =
-      async with {:ok, a} <- delay(@async_with_timeout - 40, echo("a")),
-                 {:ok, b} <- delay(@async_with_timeout - 40, echo("b")),
-                 {:ok, c} <- delay(@async_with_timeout - 10, echo("c")),
-                 {:ok, d} <- delay(@async_with_timeout - 40, echo("d(#{a})")),
+      async with {:ok, a} <- echo("a"),
+                 {:ok, b} <- echo("b"),
+                 {:ok, c} <- echo("c"),
+                 {:ok, d} <- echo("d(#{a})"),
                  {:ok, e} <- delay(@async_with_timeout + 10, echo("e(#{b})")),
-                 {:ok, f} <- delay(@async_with_timeout - 40, echo("f(#{b})")),
-                 {:ok, g} <- delay(@async_with_timeout - 40, echo("g(#{e})")) do
+                 {:ok, f} <- echo("f(#{b})"),
+                 {:ok, g} <- echo("g(#{e})") do
         Enum.join([a, b, c, d, e, f, g], " ")
       else
         {:exit, :timeout} -> :timeout
@@ -454,16 +434,14 @@ defmodule AsyncWithTest do
       async with {:ok, a} <- echo("a"),
                  {:ok, b} <- echo("b(#{a})"),
                  {:ok, c} <- echo("c(#{a})"),
-                 # Delay execution so the processes e and f are spawned
-                 {:ok, d} <- delay(@async_with_timeout - 30, error("d(#{b})")),
-                 {:ok, e} <- delay(1_000, {pid_registry(agent, :e), "e(#{c})"}),
-                 {:ok, f} <- delay(1_000, {pid_registry(agent, :f), "f(#{c})"}),
-                 {:ok, g} <- delay(1_000, {pid_registry(agent, :g), "g(#{e})"}) do
+                 {:ok, d} <- error("d(#{b})"),
+                 {:ok, e} <- delay(1_000, {register_pid(agent, :e), "e(#{c})"}),
+                 {:ok, f} <- delay(1_000, {register_pid(agent, :f), "f(#{c})"}),
+                 {:ok, g} <- delay(1_000, {register_pid(agent, :g), "g(#{e})"}) do
         Enum.join([a, b, c, d, e, f, g], " ")
       end
 
     pids = Agent.get(agent, &(&1))
-    :timer.sleep(10) # Let the tasks shutdown, but not time out
 
     assert result == :error
     refute Process.alive?(pids.e)
@@ -481,16 +459,14 @@ defmodule AsyncWithTest do
       async with {:ok, a} <- echo("a"),
                  {:ok, b} <- echo("b(#{a})"),
                  {:ok, c} <- echo("c(#{a})"),
-                 {:ok, d} <- delay(1_000, {pid_registry(agent, :d), "d(#{b})"}),
-                 {:ok, e} <- delay(1_000, {pid_registry(agent, :e), "e(#{c})"}),
-                 # Delay execution so the processes d and e are spawned
-                 {:ok, f} <- delayed_raise_oops(@async_with_timeout - 30, "f(#{c})"),
-                 {:ok, g} <- delay(1_000, {pid_registry(agent, :g), "g(#{e})"}) do
+                 {:ok, d} <- delay(1_000, {register_pid(agent, :d), "d(#{b})"}),
+                 {:ok, e} <- delay(1_000, {register_pid(agent, :e), "e(#{c})"}),
+                 {:ok, f} <- raise_oops("f(#{c})"),
+                 {:ok, g} <- delay(1_000, {register_pid(agent, :g), "g(#{e})"}) do
         Enum.join([a, b, c, d, e, f, g], " ")
       end
 
     pids = Agent.get(agent, &(&1))
-    :timer.sleep(10) # Let the tasks shutdown, but not time out
 
     assert {:exit, {%RuntimeError{message: "oops"}, _}} = result
     refute Process.alive?(pids.d)
@@ -500,23 +476,21 @@ defmodule AsyncWithTest do
     :ok = Agent.stop(agent)
   end
 
-  test "kills all the spawned processes when one of the tasks times out" do
+  test "kills all the spawned processes on timeout" do
     {:ok, agent} = Agent.start_link(fn -> %{} end)
 
     result =
       async with {:ok, a} <- echo("a"),
                  {:ok, b} <- echo("b(#{a})"),
                  {:ok, c} <- echo("c(#{a})"),
-                 {:ok, d} <- delay(1_000, {pid_registry(agent, :d), "d(#{b})"}),
-                 {:ok, e} <- delay(1_000, {pid_registry(agent, :e), "e(#{c})"}),
-                 # Delay execution so the processes e and f are spawned
+                 {:ok, d} <- delay(1_000, {register_pid(agent, :d), "d(#{b})"}),
+                 {:ok, e} <- delay(1_000, {register_pid(agent, :e), "e(#{c})"}),
                  {:ok, f} <- delay(@async_with_timeout + 10, echo("f(#{c})")),
-                 {:ok, g} <- delay(1_000, {pid_registry(agent, :g), "g(#{e})"}) do
+                 {:ok, g} <- delay(1_000, {register_pid(agent, :g), "g(#{e})"}) do
         Enum.join([a, b, c, d, e, f, g], " ")
       end
 
     pids = Agent.get(agent, &(&1))
-    :timer.sleep(10) # Let the tasks shutdown, but not time out
 
     assert result == {:exit, :timeout}
     refute Process.alive?(pids.d)
@@ -526,8 +500,9 @@ defmodule AsyncWithTest do
     :ok = Agent.stop(agent)
   end
 
+  @async_with_timeout 100
   test "optimizes the execution" do
-    started_at = DateTime.to_unix(DateTime.utc_now, :milliseconds)
+    started_at = System.system_time(:milliseconds)
 
     result =
       async with {:ok, a} <- delay(20, echo("a")),
@@ -550,7 +525,7 @@ defmodule AsyncWithTest do
     #
     # The most time consuming path should be B -> E -> G ~ 400 milliseconds
 
-    finished_at = DateTime.to_unix(DateTime.utc_now, :milliseconds)
+    finished_at = System.system_time(:milliseconds)
 
     assert result == "a b c d(a) e(b) f(b) g(e(b))"
     assert finished_at - started_at < 95
@@ -581,10 +556,10 @@ defmodule AsyncWithTest do
   test "errors with the same internal representation are not misinterpreted" do
     result =
       async with {:ok, a} <- echo("a"),
-                 {:ok, {b}} <- {:ok, [1]} do
+                 {:ok, {b}} <- {:ok, [a: 1]} do
         Enum.join([a, b], " ")
       end
 
-    assert result == {:ok, [1]}
+    assert result == {:ok, [a: 1]}
   end
 end

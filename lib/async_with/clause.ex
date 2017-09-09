@@ -62,6 +62,18 @@ defmodule AsyncWith.Clause do
   }
 
   @doc """
+  Aggregates the list of variables of the same `type`.
+  """
+  @spec get_vars(t | [t], :defined_vars | :used_vars | :guard_vars) :: MapSet.t
+  def get_vars(clause_or_clauses, type)
+  def get_vars(%Clause{} = clause, type), do: Map.get(clause, type)
+  def get_vars(clauses, type) do
+    Enum.reduce(clauses, MapSet.new(), fn clause, vars ->
+      MapSet.union(vars, get_vars(clause, type))
+    end)
+  end
+
+  @doc """
   Maps the Abstract Syntax Tree expression into an `AsyncWith.Clause` struct.
 
   ## Examples
