@@ -1,67 +1,9 @@
-defmodule AsyncWith.ClauseTest do
+defmodule AsyncWith.ClausesTest do
   use ExUnit.Case, async: true
 
-  alias AsyncWith.Clause
+  alias AsyncWith.Clauses
 
-  doctest Clause
-
-  test "one_from_ast/1 converts bare expressions into assignments" do
-    ast = quote(do: {:ok, a})
-    expected_clause = %Clause{
-      operator: :=,
-      left: Macro.var(:_, nil),
-      right: ast,
-      defined_vars: MapSet.new(),
-      used_vars: MapSet.new([:a]),
-      guard_vars: MapSet.new()
-    }
-
-    assert Clause.one_from_ast(ast) == expected_clause
-  end
-
-  test "one_from_ast/1 with assignments" do
-    ast = quote(do: {^ok, a} = {:ok, b})
-    expected_clause = %Clause{
-      operator: :=,
-      left: quote(do: {^ok, a}),
-      right: quote(do: {:ok, b}),
-      defined_vars: MapSet.new([:a]),
-      used_vars: MapSet.new([:ok, :b]),
-      guard_vars: MapSet.new()
-    }
-
-    assert Clause.one_from_ast(ast) == expected_clause
-  end
-
-  test "one_from_ast/1 with guards" do
-    ast = quote(do: {:ok, a} when is_integer(a) <- {:ok, b})
-    expected_clause = %Clause{
-      operator: :<-,
-      left: quote(do: {:ok, a} when is_integer(a)),
-      right: quote(do: {:ok, b}),
-      defined_vars: MapSet.new([:a]),
-      used_vars: MapSet.new([:b]),
-      guard_vars: MapSet.new([:a])
-    }
-
-    assert Clause.one_from_ast(ast) == expected_clause
-  end
-
-  test "one_from_ast/1 with ignored and unbound variables" do
-    ast = quote(do: {_ok, _} <- {:ok, b})
-    expected_clause = %Clause{
-      operator: :<-,
-      left: quote(do: {_ok, _}),
-      right: quote(do: {:ok, b}),
-      defined_vars: MapSet.new([:_ok]),
-      used_vars: MapSet.new([:b]),
-      guard_vars: MapSet.new()
-    }
-
-    assert Clause.one_from_ast(ast) == expected_clause
-  end
-
-  test "many_from_ast/1 renames rebinded variables" do
+  test "from_ast/1 renames rebinded variables" do
     ast = quote do
       [
         {^ok, a} <- echo(b, c),
@@ -71,52 +13,75 @@ defmodule AsyncWith.ClauseTest do
       ]
     end
 
-    clauses = Clause.many_from_ast(ast)
+    clauses = Clauses.from_ast(ast)
+    async_with_a1 = Macro.var(:async_with_a@1, nil)
+    async_with_b1 = Macro.var(:async_with_b@1, nil)
 
-    renamed_a = get_renamed_var(clauses, :a)
-    renamed_b = get_renamed_var(clauses, :b)
-    renamed_var_a = {renamed_a, [], __MODULE__}
-    renamed_var_b = {renamed_b, [], __MODULE__}
-
-    expected_clauses = [
-      %Clause{
-        operator: :<-,
-        left: quote(do: {^ok, unquote(renamed_var_a)}),
-        right: quote(do: echo(b, c)),
-        defined_vars: MapSet.new([renamed_a]),
-        used_vars: MapSet.new(),
-        guard_vars: MapSet.new()
+    assert_equal(clauses, [
+      %{
+        function: quote do
+          fn results ->
+            []
+            with {^ok, unquote(async_with_a1)} <- echo(b, c) do
+              {:ok, [async_with_a@1: unquote(async_with_a1)]}
+            else
+              error -> {:error, error}
+            end
+          end
+        end,
+        defined_vars: [:async_with_a@1],
+        used_vars: [],
+        guard_vars: []
       },
-      %Clause{
-        operator: :<-,
-        left: quote(do: {:ok, unquote(renamed_var_b)}),
-        right: quote(do: echo(m)),
-        defined_vars: MapSet.new([renamed_b]),
-        used_vars: MapSet.new(),
-        guard_vars: MapSet.new()
+      %{
+        function: quote do
+          fn results ->
+            []
+            with {:ok, unquote(async_with_b1)} <- echo(m) do
+              {:ok, [async_with_b@1: unquote(async_with_b1)]}
+            else
+              error -> {:error, error}
+            end
+          end
+        end,
+        defined_vars: [:async_with_b@1],
+        used_vars: [],
+        guard_vars: []
       },
-      %Clause{
-        operator: :<-,
-        left: quote(do: {:ok, a}),
-        right: quote(do: echo(unquote(renamed_var_a))),
-        defined_vars: MapSet.new([:a]),
-        used_vars: MapSet.new([renamed_a]),
-        guard_vars: MapSet.new()
+      %{
+        function: quote do
+          fn results ->
+            [unquote(async_with_a1) = Keyword.fetch!(results, :async_with_a@1)]
+            with {:ok, a} <- echo(unquote(async_with_a1)) do
+              {:ok, [a: a]}
+            else
+              error -> {:error, error}
+            end
+          end
+        end,
+        defined_vars: [:a],
+        used_vars: [:async_with_a@1],
+        guard_vars: []
       },
-      %Clause{
-        operator: :<-,
-        left: quote(do: {:ok, b, m}),
-        right: quote(do: echo(unquote(renamed_var_b))),
-        defined_vars: MapSet.new([:b, :m]),
-        used_vars: MapSet.new([renamed_b]),
-        guard_vars: MapSet.new()
+      %{
+        function: quote do
+          fn results ->
+            [unquote(async_with_b1) = Keyword.fetch!(results, :async_with_b@1)]
+            with {:ok, b, m} <- echo(unquote(async_with_b1)) do
+              {:ok, [b: b, m: m]}
+            else
+              error -> {:error, error}
+            end
+          end
+        end,
+        defined_vars: [:b, :m],
+        used_vars: [:async_with_b@1],
+        guard_vars: []
       }
-    ]
-
-    assert clauses == expected_clauses
+    ])
   end
 
-  test "many_from_ast/1 with guards" do
+  test "from_ast/1 works with guards" do
     ast = quote do
       [
         {^ok, a} when is_atom(a) <- echo(b, c),
@@ -126,86 +91,184 @@ defmodule AsyncWith.ClauseTest do
       ]
     end
 
-    clauses = Clause.many_from_ast(ast)
+    clauses = Clauses.from_ast(ast)
+    async_with_a1 = Macro.var(:async_with_a@1, nil)
+    async_with_b1 = Macro.var(:async_with_b@1, nil)
 
-    renamed_a = get_renamed_var(clauses, :a)
-    renamed_b = get_renamed_var(clauses, :b)
-    renamed_var_a = {renamed_a, [], __MODULE__}
-    renamed_var_b = {renamed_b, [], __MODULE__}
-
-    expected_clauses = [
-      %Clause{
-        operator: :<-,
-        left: quote(do: {^ok, unquote(renamed_var_a)} when is_atom(unquote(renamed_var_a))),
-        right: quote(do: echo(b, c)),
-        defined_vars: MapSet.new([renamed_a]),
-        used_vars: MapSet.new(),
-        guard_vars: MapSet.new([renamed_a])
+    assert_equal(clauses, [
+      %{
+        function: quote do
+          fn results ->
+            []
+            with {^ok, unquote(async_with_a1)} when is_atom(unquote(async_with_a1)) <- echo(b, c) do
+              {:ok, [async_with_a@1: unquote(async_with_a1)]}
+            else
+              error -> {:error, error}
+            end
+          end
+        end,
+        defined_vars: [:async_with_a@1],
+        used_vars: [],
+        guard_vars: [:async_with_a@1]
       },
-      %Clause{
-        operator: :<-,
-        left: quote(do: {:ok, unquote(renamed_var_b)}),
-        right: quote(do: echo(m)),
-        defined_vars: MapSet.new([renamed_b]),
-        used_vars: MapSet.new(),
-        guard_vars: MapSet.new()
+      %{
+        function: quote do
+          fn results ->
+            []
+            with {:ok, unquote(async_with_b1)} <- echo(m) do
+              {:ok, [async_with_b@1: unquote(async_with_b1)]}
+            else
+              error -> {:error, error}
+            end
+          end
+        end,
+        defined_vars: [:async_with_b@1],
+        used_vars: [],
+        guard_vars: []
       },
-      %Clause{
-        operator: :<-,
-        left: quote(do: {:ok, a}),
-        right: quote(do: echo(unquote(renamed_var_a))),
-        defined_vars: MapSet.new([:a]),
-        used_vars: MapSet.new([renamed_a]),
-        guard_vars: MapSet.new()
+      %{
+        function: quote do
+          fn results ->
+            [unquote(async_with_a1) = Keyword.fetch!(results, :async_with_a@1)]
+            with {:ok, a} <- echo(unquote(async_with_a1)) do
+              {:ok, [a: a]}
+            else
+              error -> {:error, error}
+            end
+          end
+        end,
+        defined_vars: [:a],
+        used_vars: [:async_with_a@1],
+        guard_vars: []
       },
-      %Clause{
-        operator: :<-,
-        left: quote(do: {:ok, b, m}),
-        right: quote(do: echo(unquote(renamed_var_b))),
-        defined_vars: MapSet.new([:b, :m]),
-        used_vars: MapSet.new([renamed_b]),
-        guard_vars: MapSet.new()
+      %{
+        function: quote do
+          fn results ->
+            [unquote(async_with_b1) = Keyword.fetch!(results, :async_with_b@1)]
+            with {:ok, b, m} <- echo(unquote(async_with_b1)) do
+              {:ok, [b: b, m: m]}
+            else
+              error -> {:error, error}
+            end
+          end
+        end,
+        defined_vars: [:b, :m],
+        used_vars: [:async_with_b@1],
+        guard_vars: []
       }
-    ]
-
-    assert clauses == expected_clauses
+    ])
   end
 
-  test "many_from_ast/1 with ignored and unbound variables" do
-    ast = quote(do: [{_ok, _} <- echo(b, c)])
+  test "from_ast/1 works with ignored and unbound variables" do
+    ast = quote do
+      [{_ok, _} <- echo(b, c)]
+    end
 
-    clauses = Clause.many_from_ast(ast)
+    clauses = Clauses.from_ast(ast)
+    async_with__ok = Macro.var(:async_with__ok@1, nil)
 
-    renamed__ok = get_renamed_var(clauses, :_ok)
-    renamed_var__ok = {renamed__ok, [], __MODULE__}
-
-    expected_clauses = [
-      %Clause{
-        operator: :<-,
-        left: quote(do: {unquote(renamed_var__ok), _}),
-        right: quote(do: echo(b, c)),
-        defined_vars: MapSet.new([renamed__ok]),
-        used_vars: MapSet.new(),
-        guard_vars: MapSet.new()
+    assert_equal(clauses, [
+      %{
+        function: quote do
+          fn results ->
+            []
+            with {unquote(async_with__ok), _} <- echo(b, c) do
+              {:ok, [async_with__ok@1: unquote(async_with__ok)]}
+            else
+              error -> {:error, error}
+            end
+          end
+        end,
+        defined_vars: [:async_with__ok@1],
+        used_vars: [],
+        guard_vars: []
       }
-    ]
-
-    assert clauses == expected_clauses
+    ])
   end
 
-  defp get_renamed_var(clauses, var) do
-    clauses
-    |> get_defined_vars()
-    |> Enum.find(&renamed_var?(&1, var))
+  test "from_ast/1 works with assignments" do
+    ast = quote do
+      [
+        {:ok, a} <- echo(m),
+        {:ok, a} = echo(a)
+      ]
+    end
+
+    clauses = Clauses.from_ast(ast)
+    async_with_a1 = Macro.var(:async_with_a@1, nil)
+
+    assert_equal(clauses, [
+      %{
+        function: quote do
+          fn results ->
+            []
+            with {:ok, unquote(async_with_a1)} <- echo(m) do
+              {:ok, [async_with_a@1: unquote(async_with_a1)]}
+            else
+              error -> {:error, error}
+            end
+          end
+        end,
+        defined_vars: [:async_with_a@1],
+        used_vars: [],
+        guard_vars: []
+      },
+      %{
+        function: quote do
+          fn results ->
+            try do
+              [unquote(async_with_a1) = Keyword.fetch!(results, :async_with_a@1)]
+              {:ok, a} = echo(unquote(async_with_a1))
+              {:ok, [a: a]}
+            rescue
+              error in MatchError -> {:match_error, error}
+            end
+          end
+        end,
+        defined_vars: [:a],
+        used_vars: [:async_with_a@1],
+        guard_vars: []
+      }
+    ])
   end
 
-  defp get_defined_vars(clauses) do
-    Enum.reduce(clauses, MapSet.new(), fn clause, defined_vars ->
-      MapSet.union(clause.defined_vars, defined_vars)
-    end)
+  test "from_ast/1 converts bare expressions into assignments" do
+    ast = quote do
+      [{:ok, a}]
+    end
+
+    clauses = Clauses.from_ast(ast)
+
+    assert_equal(clauses, [
+      %{
+        function: quote do
+          fn results ->
+            try do
+              []
+              _ = {:ok, a}
+              {:ok, []}
+            rescue
+              error in MatchError -> {:match_error, error}
+            end
+          end
+        end,
+        defined_vars: [],
+        used_vars: [],
+        guard_vars: []
+      }
+    ])
   end
 
-  defp renamed_var?(renamed_var, var) do
-    String.contains?("#{renamed_var}", "async_with_#{var}_")
+  defp assert_equal(clauses, expected_clauses) do
+    var_types = [:defined_vars, :used_vars, :guard_vars]
+    vars = Enum.map(clauses, &Map.take(&1, var_types))
+    expected_vars = Enum.map(expected_clauses, &Map.take(&1, var_types))
+
+    assert vars == expected_vars
+
+    functions = Enum.map(clauses, &Macro.to_string(&1.function))
+    expected_functions = Enum.map(expected_clauses, &Macro.to_string(&1.function))
+
+    assert functions == expected_functions
   end
 end

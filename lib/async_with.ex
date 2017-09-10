@@ -46,7 +46,7 @@ defmodule AsyncWith do
 
   """
 
-  alias AsyncWith.Clause
+  alias AsyncWith.Clauses
 
   defmacro __using__(_) do
     quote do
@@ -136,12 +136,13 @@ defmodule AsyncWith do
 
   defp do_async(nil, blocks), do: quote(do: with(unquote(blocks)))
   defp do_async(ast, blocks) do
-    clauses = Clause.many_from_ast(ast)
+    clauses = Clauses.from_ast(ast)
     {success_block, error_block} = get_success_and_error_blocks(clauses, blocks)
 
     quote do
       task = Task.Supervisor.async_nolink(AsyncWith.TaskSupervisor, fn ->
-        AsyncWith.async_with(unquote(get_clauses(clauses)))
+        clauses = Enum.map(unquote(Enum.map(clauses, &Map.to_list/1)), &Enum.into(&1, %{}))
+        AsyncWith.async_with(clauses)
       end)
 
       case Task.yield(task, @async_with_timeout) || Task.shutdown(task) || {:exit, :timeout} do
@@ -191,7 +192,7 @@ defmodule AsyncWith do
   defp get_success_block(clauses, do_block) do
     assignments =
       clauses
-      |> Clause.get_vars(:defined_vars)
+      |> Clauses.get_vars(:defined_vars)
       |> filter_renamed_vars()
       |> filter_internal_vars(clauses, do_block)
       |> Enum.map(fn var ->
@@ -240,8 +241,8 @@ defmodule AsyncWith do
   # would not use the `width` variable to compute `double_width`.
   defp filter_internal_vars(vars, clauses, do_block) do
     do_block_vars = MapSet.new(AsyncWith.Macro.get_vars(do_block))
-    used_vars = Clause.get_vars(clauses, :used_vars)
-    guard_vars = Clause.get_vars(clauses, :guard_vars)
+    used_vars = Clauses.get_vars(clauses, :used_vars)
+    guard_vars = Clauses.get_vars(clauses, :guard_vars)
 
     Enum.reject(vars, fn var ->
       not var in do_block_vars and (var in used_vars or var in guard_vars)
@@ -252,65 +253,6 @@ defmodule AsyncWith do
     quote do
       case error, do: unquote(else_block)
     end
-  end
-
-  defp get_clauses(clauses) do
-    Enum.map(clauses, fn clause ->
-      quote do
-        %{
-          function: unquote(clause_to_function(clause)),
-          task: nil,
-          defined_vars: MapSet.new(unquote(MapSet.to_list(clause.defined_vars))),
-          used_vars: MapSet.new(unquote(MapSet.to_list(clause.used_vars)))
-        }
-      end
-    end)
-  end
-
-  defp clause_to_function(%Clause{operator: :<-} = clause) do
-    quote do
-      fn state ->
-        unquote(get_ast_to_bind_vars(clause.used_vars))
-        with unquote(clause.left) <- unquote(clause.right) do
-          unquote(get_ast_to_return_results(clause))
-        else
-          error -> {:error, error}
-        end
-      end
-    end
-  end
-
-  defp clause_to_function(%Clause{operator: :=} = clause) do
-    quote do
-      fn state ->
-        try do
-          unquote(get_ast_to_bind_vars(clause.used_vars))
-          unquote(clause.left) = unquote(clause.right)
-          unquote(get_ast_to_return_results(clause))
-        rescue
-          error in MatchError -> {:match_error, error}
-        end
-      end
-    end
-  end
-
-  defp get_ast_to_return_results(%Clause{defined_vars: defined_vars}) do
-    results =
-      Enum.map(defined_vars, fn var ->
-        quote do
-          {unquote(var), unquote(Macro.var(var, nil))}
-        end
-      end)
-
-    quote(do: {:ok, unquote(results)})
-  end
-
-  defp get_ast_to_bind_vars(vars) do
-    Enum.map(vars, fn var ->
-      quote do
-        unquote(Macro.var(var, nil)) = Keyword.fetch!(state, unquote(var))
-      end
-    end)
   end
 
   # Returns the values of all the variables binded in `clauses`.
@@ -362,15 +304,16 @@ defmodule AsyncWith do
   #   11. Return [a: 1, b: 3, c: {1, 3}]
   #
   @doc false
-  def async_with(clauses, values \\ [])
-  def async_with([], values), do: {:ok, values}
-  def async_with(clauses, values) do
-    clauses = spawn_tasks(clauses, values)
+  @spec async_with([Clauses.clause], keyword) :: {:ok, keyword} | any
+  def async_with(clauses, results \\ [])
+  def async_with([], results), do: {:ok, results}
+  def async_with(clauses, results) do
+    clauses = spawn_tasks(clauses, results)
 
     receive do
       {ref, {:ok, reply}} ->
         Process.demonitor(ref, [:flush])
-        async_with(remove_clause(clauses, ref), Keyword.merge(values, reply))
+        async_with(remove_clause(clauses, ref), Keyword.merge(results, reply))
 
       {_ref, reply} ->
         shutdown_tasks(clauses)
@@ -388,29 +331,28 @@ defmodule AsyncWith do
   end
 
   defp shutdown_tasks(clauses) do
-    clauses
-    |> Enum.reject(&is_nil(&1.task))
-    |> Enum.each(&Task.shutdown(&1.task))
+    Enum.each(clauses, fn %{task: task} -> Task.shutdown(task)
+                          _ -> nil end)
   end
 
-  # Spawns all the tasks whose dependencies have been fulfilled.
-  defp spawn_tasks(clauses, values) do
-    processed_vars = MapSet.new(Keyword.keys(values))
+  # Spawns all the tasks whose dependencies have been processed.
+  defp spawn_tasks(clauses, results) do
+    processed_vars = Keyword.keys(results)
 
     Enum.map(clauses, fn clause ->
       if spawn_task?(clause, processed_vars) do
-        %{clause | task: Task.async(fn -> clause.function.(values) end)}
+        task = Task.async(fn -> clause.function.(results) end)
+        Map.merge(clause, %{task: task})
       else
         clause
       end
     end)
   end
 
-  defp spawn_task?(%{task: nil, used_vars: used_vars}, processed_vars) do
-    MapSet.subset?(used_vars, processed_vars)
+  defp spawn_task?(%{task: _task}, _processed_vars), do: false
+  defp spawn_task?(%{used_vars: used_vars}, processed_vars) do
+    used_vars -- processed_vars == [] # All the dependencies are processed
   end
-
-  defp spawn_task?(_, _), do: false
 
   defp reason(:noconnection, proc), do: {:nodedown, monitor_node(proc)}
   defp reason(reason, _), do: reason
