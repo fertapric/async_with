@@ -31,7 +31,6 @@ defmodule AsyncWith.Mixfile do
 
   defp deps do
     [
-      {:batch, "~> 0.1.0"},
       {:credo, "~> 0.8.6", only: :dev, runtime: false},
       {:dialyxir, "~> 0.5.1", only: :dev, runtime: false},
       {:ex_doc, "~> 0.16.3", only: :docs, runtime: false},
