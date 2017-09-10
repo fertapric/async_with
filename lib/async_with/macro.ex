@@ -1,7 +1,5 @@
 defmodule AsyncWith.Macro do
-  @moduledoc """
-  Conveniences for working with macros.
-  """
+  @moduledoc false
 
   @doc """
   Generates AST nodes for a given list of variables using `Macro.var/2`.
