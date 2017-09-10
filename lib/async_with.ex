@@ -145,7 +145,9 @@ defmodule AsyncWith do
         AsyncWith.async_with(clauses)
       end)
 
-      case Task.yield(task, @async_with_timeout) || Task.shutdown(task) || {:exit, :timeout} do
+      timeout_exit = {:exit, {:timeout, {unquote(__MODULE__), :async, [@async_with_timeout]}}}
+
+      case Task.yield(task, @async_with_timeout) || Task.shutdown(task) || timeout_exit do
         {:ok, {:ok, values}} -> unquote(success_block)
         {:ok, {:match_error, %MatchError{term: term}}} -> raise(MatchError, term: term)
         {:ok, {:error, error}} -> unquote(error_block)

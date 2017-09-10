@@ -375,7 +375,7 @@ defmodule AsyncWithTest do
     assert result == %RuntimeError{message: "oops"}
   end
 
-  test "returns `{:exit, :timeout}` on timeout" do
+  test "returns `{:exit, {:timeout, {AsyncWith, :async, [@async_with_timeout]}}}` on timeout" do
     result =
       async with {:ok, a} <- echo("a"),
                  {:ok, b} <- echo("b"),
@@ -387,7 +387,7 @@ defmodule AsyncWithTest do
         Enum.join([a, b, c, d, e, f, g], " ")
       end
 
-    assert result == {:exit, :timeout}
+    assert result == {:exit, {:timeout, {AsyncWith, :async, [50]}}}
   end
 
   test "executes else conditions on timeout" do
@@ -401,7 +401,7 @@ defmodule AsyncWithTest do
                  {:ok, g} <- echo("g(#{e})") do
         Enum.join([a, b, c, d, e, f, g], " ")
       else
-        {:exit, :timeout} -> :timeout
+        {:exit, {:timeout, _}} -> :timeout
       end
 
     assert result == :timeout
@@ -492,7 +492,7 @@ defmodule AsyncWithTest do
 
     pids = Agent.get(agent, &(&1))
 
-    assert result == {:exit, :timeout}
+    assert result == {:exit, {:timeout, {AsyncWith, :async, [50]}}}
     refute Process.alive?(pids.d)
     refute Process.alive?(pids.e)
     refute Map.has_key?(pids, :g)
