@@ -1,36 +1,5 @@
 defmodule AsyncWith.Clause do
-  @moduledoc """
-  Defines a clause.
-
-  There are three types of clauses:
-
-    * Clauses with arrow (or send operator) - `a <- 1`
-    * Clauses with match operator - `a = 1`
-    * Bare expressions - `my_function(a)` - However, bare expressions are converted to
-      clauses with match operator `_ = my_function(a)` to ensure both left and right sides
-      are always present. This homogenization processs simplifies the building of the
-      `AsyncWith.DependencyGraph` and the generation of the final Abstract Syntax Tree.
-
-  Each clause is mapped into the following Elixir struct:
-
-    * `operator` - Either match `:=` or send `:<-` operators.
-    * `left` - The left-hand side of the clause.
-    * `right` - The right-hand side of the clause.
-    * `defined_vars` - The list of variables binded/defined in the clause.
-    * `used_vars` - The list of variables used in the clause (including pin matching).
-    * `guard_vars` - The list of variables used in the guard clause.
-
-  As example, the following clause `{:ok, {^a, b}} when is_binary(b) <- echo(c, d)` would
-  be mapped to an `AsyncWith.Clause` with the following attributes:
-
-    * `operator` would be `:<-`.
-    * `left` would be the AST representation of `{:ok, {^a, b}}`.
-    * `right` would be the AST representation of `echo(c, d)`.
-    * `defined_vars` would be `[:b]` (`MapSet`).
-    * `used_vars` would be `[:a, :c, :d]` (`MapSet`).
-    * `guard_vars` would be `[:b]` (`MapSet`).
-
-  """
+  @moduledoc false
 
   alias __MODULE__
 
@@ -115,6 +84,34 @@ defmodule AsyncWith.Clause do
 
   @doc """
   Maps multiple and dependent Abstract Syntax Tree expressions into `AsyncWith.Clause` structs.
+
+  There are three types of clauses:
+
+    * Clauses with arrow (or send operator) - `a <- 1`
+    * Clauses with match operator - `a = 1`
+    * Bare expressions - `my_function(a)` - However, bare expressions are converted to
+      clauses with match operator `_ = my_function(a)` to ensure both left and right sides
+      are always present. This homogenization processs simplifies the building of the
+      `AsyncWith.DependencyGraph` and the generation of the final Abstract Syntax Tree.
+
+  Each clause is mapped into the following Elixir struct:
+
+    * `operator` - Either match `:=` or send `:<-` operators.
+    * `left` - The left-hand side of the clause.
+    * `right` - The right-hand side of the clause.
+    * `defined_vars` - The list of variables binded/defined in the clause.
+    * `used_vars` - The list of variables used in the clause (including pin matching).
+    * `guard_vars` - The list of variables used in the guard clause.
+
+  As example, the following clause `{:ok, {^a, b}} when is_binary(b) <- echo(c, d)` would
+  be mapped to an `AsyncWith.Clause` with the following attributes:
+
+    * `operator` would be `:<-`.
+    * `left` would be the AST representation of `{:ok, {^a, b}}`.
+    * `right` would be the AST representation of `echo(c, d)`.
+    * `defined_vars` would be `[:b]` (`MapSet`).
+    * `used_vars` would be `[:a, :c, :d]` (`MapSet`).
+    * `guard_vars` would be `[:b]` (`MapSet`).
 
   The main goal of this function is to process the clauses of the `async with` expression before
   building the `AsyncWith.DependencyGraph`.

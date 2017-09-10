@@ -18,7 +18,7 @@
   * [Macro.DependencyGraph] Deprecate the `Macro.DependencyGraph` module.
   * [Macro.OutNeighbours] Deprecate the `Macro.OutNeighbours` module.
   * [Macro.Vertex] Deprecate the `Macro.Vertex` module.
-  * [Clause] Deprecate the `ast` field.
+  * [Clause] Make the `Clause` module private.
   * [Macro] Make the `Macro` module private.
 
 ### 4. Deprecations
