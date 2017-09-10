@@ -11,5 +11,8 @@
   * [DOT] Deprecate the `DOT` module.
   * [DependencyGraph] Deprecate the `DependencyGraph` module.
   * [DependencyGraph.Vertex] Deprecate the `DependencyGraph.Vertex` module.
+  * [Macro.DependencyGraph] Deprecate the `Macro.DependencyGraph` module.
+  * [Macro.OutNeighbours] Deprecate the `Macro.OutNeighbours` module.
+  * [Macro.Vertex] Deprecate the `Macro.Vertex` module.
 
 ### 4. Deprecations
