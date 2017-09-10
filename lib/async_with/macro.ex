@@ -2,20 +2,6 @@ defmodule AsyncWith.Macro do
   @moduledoc false
 
   @doc """
-  Generates AST nodes for a given list of variables using `Macro.var/2`.
-
-  ## Examples
-
-      iex> AsyncWith.Macro.vars([:a, :b, :c], nil)
-      [{:a, [], nil}, {:b, [], nil}, {:c, [], nil}]
-
-  """
-  @spec vars([atom], :atom | nil) :: Macro.t
-  def vars(vars, context) do
-    Enum.map(vars, &Macro.var(&1, context))
-  end
-
-  @doc """
   Returns the list of variables of the `ast`.
 
   ## Examples
