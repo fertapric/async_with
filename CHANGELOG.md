@@ -5,6 +5,7 @@
 ### 1. Enhancements
 
   * [async with] Optimize implementation
+  * [async with] Use same timeout exit format as `Task`
 
 ### 2. Bug fixes
 
