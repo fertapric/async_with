@@ -7,7 +7,7 @@ defmodule AsyncWith.Mixfile do
     [
       app: :async_with,
       version: @version,
-      elixir: "~> 1.5",
+      elixir: "~> 1.4",
       elixirc_paths: elixirc_paths(Mix.env),
       deps: deps(),
       package: package(),
