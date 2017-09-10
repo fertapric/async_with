@@ -11,7 +11,7 @@
 
   * [async with] Ensure asynchronous execution of all clauses as soon as their dependencies are fulfilled
 
-### 3. Soft deprecations (no warnings emitted)
+### 3. Deprecations
 
   * [DOT] Deprecate the `DOT` module.
   * [DependencyGraph] Deprecate the `DependencyGraph` module.
@@ -21,5 +21,3 @@
   * [Macro.Vertex] Deprecate the `Macro.Vertex` module.
   * [Clause] Make the `Clause` module private.
   * [Macro] Make the `Macro` module private.
-
-### 4. Deprecations
