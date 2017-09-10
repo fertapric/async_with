@@ -47,7 +47,6 @@ defmodule AsyncWith do
   """
 
   alias AsyncWith.Clause
-  alias AsyncWith.DependencyGraph
 
   defmacro __using__(_) do
     quote do
