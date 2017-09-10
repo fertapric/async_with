@@ -19,5 +19,6 @@
   * [Macro.OutNeighbours] Deprecate the `Macro.OutNeighbours` module.
   * [Macro.Vertex] Deprecate the `Macro.Vertex` module.
   * [Clause] Deprecate the `ast` field.
+  * [Macro] Make the `Macro` module private.
 
 ### 4. Deprecations
