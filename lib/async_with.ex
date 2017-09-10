@@ -136,8 +136,8 @@ defmodule AsyncWith do
 
   defp do_async(nil, blocks), do: quote(do: with(unquote(blocks)))
   defp do_async(ast, blocks) do
-    {do_block, else_block} = get_do_and_else_blocks(blocks)
     clauses = Clause.many_from_ast(ast)
+    {success_block, error_block} = get_success_and_error_blocks(clauses, blocks)
 
     quote do
       task = Task.Supervisor.async_nolink(AsyncWith.TaskSupervisor, fn ->
@@ -145,23 +145,24 @@ defmodule AsyncWith do
       end)
 
       case Task.yield(task, @async_with_timeout) || Task.shutdown(task) || {:exit, :timeout} do
-        {:ok, {:ok, state}} ->
-          with unquote_splicing(bind_final_vars(clauses, do_block)), do: unquote(do_block)
-        {:ok, {:match_error, %MatchError{term: term}}} ->
-          raise(MatchError, term: term)
-        {:ok, {:error, error}} ->
-          case error, do: unquote(else_block)
-        error ->
-          case error, do: unquote(else_block)
+        {:ok, {:ok, values}} -> unquote(success_block)
+        {:ok, {:match_error, %MatchError{term: term}}} -> raise(MatchError, term: term)
+        {:ok, {:error, error}} -> unquote(error_block)
+        error -> unquote(error_block)
       end
     end
+  end
+
+  defp get_success_and_error_blocks(clauses, blocks) do
+    {do_block, else_block} = get_do_and_else_blocks(blocks)
+    {get_success_block(clauses, do_block), get_error_block(else_block)}
   end
 
   # Returns a tuple `{do_block, else_block}` representing the `:do` and `:else` blocks
   # of the `async with` expression.
   #
   # Raises `missing :do option in "async with"` if the `:do` block is not present.
-  def get_do_and_else_blocks(do: do_block, else: else_block) do
+  defp get_do_and_else_blocks(do: do_block, else: else_block) do
     if contains_always_match_condition?(else_block) do
       {do_block, else_block}
     else
@@ -169,12 +170,12 @@ defmodule AsyncWith do
     end
   end
 
-  def get_do_and_else_blocks(do: do_block) do
+  defp get_do_and_else_blocks(do: do_block) do
     default_else_block = quote(do: (error -> error))
     get_do_and_else_blocks(do: do_block, else: default_else_block)
   end
 
-  def get_do_and_else_blocks(_), do: raise(~s(missing :do option in "async with"))
+  defp get_do_and_else_blocks(_), do: raise(~s(missing :do option in "async with"))
 
   # Checks for match-all else conditions to prevent `warning: this clause cannot match because
   # a previous clause at line <line number> always matches`.
@@ -187,29 +188,24 @@ defmodule AsyncWith do
     end)
   end
 
-  defp get_clauses(clauses) do
-    Enum.map(clauses, fn clause ->
-      quote do
-        %{
-          function: unquote(clause_to_function(clause)),
-          task: nil,
-          defined_vars: MapSet.new(unquote(MapSet.to_list(clause.defined_vars))),
-          used_vars: MapSet.new(unquote(MapSet.to_list(clause.used_vars)))
-        }
-      end
-    end)
+  defp get_success_block(clauses, do_block) do
+    assignments =
+      clauses
+      |> Clause.get_vars(:defined_vars)
+      |> filter_renamed_vars()
+      |> filter_internal_vars(clauses, do_block)
+      |> Enum.map(fn var ->
+        quote do
+          unquote(Macro.var(var, nil)) = Keyword.fetch!(values, unquote(var))
+        end
+      end)
+
+    quote do
+      with unquote_splicing(assignments), do: unquote(do_block)
+    end
   end
 
-  # Returns an AST node representing the
-  defp bind_final_vars(clauses, do_block) do
-    clauses
-    |> Clause.get_vars(:defined_vars)
-    |> filter_renamed_vars()
-    |> filter_internal_vars(clauses, do_block)
-    |> get_ast_to_bind_vars()
-  end
-
-  # Filter variables that have been renamed because they are rebinded in other clauses.
+  # Filters variables that have been renamed because they are rebinded in other clauses.
   #
   # Prevents `warning: variable "<variable>" is unused`, since renamed variables are not used
   # in the `:do` block.
@@ -249,6 +245,25 @@ defmodule AsyncWith do
 
     Enum.reject(vars, fn var ->
       not var in do_block_vars and (var in used_vars or var in guard_vars)
+    end)
+  end
+
+  defp get_error_block(else_block) do
+    quote do
+      case error, do: unquote(else_block)
+    end
+  end
+
+  defp get_clauses(clauses) do
+    Enum.map(clauses, fn clause ->
+      quote do
+        %{
+          function: unquote(clause_to_function(clause)),
+          task: nil,
+          defined_vars: MapSet.new(unquote(MapSet.to_list(clause.defined_vars))),
+          used_vars: MapSet.new(unquote(MapSet.to_list(clause.used_vars)))
+        }
+      end
     end)
   end
 
