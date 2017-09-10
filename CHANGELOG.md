@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.1
+
+### 1. Enhancements
+
+  * [async with] Correct documentation regarding `@async_with_timeout` attribute
+
 ## v0.2.0
 
 ### 1. Enhancements

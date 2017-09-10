@@ -28,8 +28,9 @@ defmodule AsyncWith do
 
   ## Timeout attribute
 
-  The attribute `@async_with_timeout` can be used to configure the maximum time allowed per
-  clause. It expects a timeout in milliseconds, with the default value of `5000`.
+  The attribute `@async_with_timeout` can be used to configure the maximum time allowed to
+  execute all the clauses. It expects a timeout in milliseconds, with the default value of
+  `5000`.
 
       defmodule Acme do
         use AsyncWith
