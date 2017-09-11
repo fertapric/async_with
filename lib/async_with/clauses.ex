@@ -23,7 +23,10 @@ defmodule AsyncWith.Clauses do
 
   There are three types of clauses:
 
-    * Clauses with arrow (or send operator) - `a <- 1`
+    * Clauses with arrow (or send operator) - `a <- 1` - However, clauses that always match
+      (the left side is a variable) are converted to clauses with match operator. This prevents
+      `warning: "else" clauses will never match because all patterns in "with" will always
+      match`.
     * Clauses with match operator - `a = 1`
     * Bare expressions - `my_function(a)` - However, bare expressions are converted to
       clauses with match operator `_ = my_function(a)` to ensure both left and right sides
@@ -91,7 +94,15 @@ defmodule AsyncWith.Clauses do
   end
 
   defp one_from_ast({:=, _meta, [left, right]}), do: do_one_from_ast(:=, left, right)
-  defp one_from_ast({:<-, _meta, [left, right]}), do: do_one_from_ast(:<-, left, right)
+
+  defp one_from_ast({:<-, _meta, [left, right]}) do
+    if AsyncWith.Macro.var?(left) do
+      do_one_from_ast(:=, left, right)
+    else
+      do_one_from_ast(:<-, left, right)
+    end
+  end
+
   # Bare expressions are converted to clauses following the pattern `_ = <bare expression>`
   defp one_from_ast(ast), do: do_one_from_ast(:=, Macro.var(:_, nil), ast)
 
