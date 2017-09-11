@@ -167,7 +167,7 @@ defmodule AsyncWith do
   #
   # Raises `missing :do option in "async with"` if the `:do` block is not present.
   defp get_do_and_else_blocks(do: do_block, else: else_block) do
-    if contains_always_match_condition?(else_block) do
+    if contains_always_match_else_condition?(else_block) do
       {do_block, else_block}
     else
       {do_block, else_block ++ quote(do: (term -> raise(AsyncWith.ClauseError, term: term)))}
@@ -183,13 +183,8 @@ defmodule AsyncWith do
 
   # Checks for match-all else conditions to prevent `warning: this clause cannot match because
   # a previous clause at line <line number> always matches`.
-  defp contains_always_match_condition?(else_block) do
-    Enum.any?(else_block, fn {:->, _meta, [[left], _right]} ->
-      case left do
-        {var, _meta, args} when is_atom(var) and not is_list(args) -> true
-        _ -> false
-      end
-    end)
+  defp contains_always_match_else_condition?(else_block) do
+    Enum.any?(else_block, fn {:->, _meta, [[left], _right]} -> AsyncWith.Macro.var?(left) end)
   end
 
   defp get_success_block(clauses, do_block) do
