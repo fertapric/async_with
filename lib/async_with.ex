@@ -132,7 +132,18 @@ defmodule AsyncWith do
 
   """
   defmacro async(with_expression, blocks)
-  defmacro async({:with, _meta, ast}, blocks), do: do_async(ast, blocks)
+
+  defmacro async({:with, _meta, ast}, blocks) do
+    with {:ok, _else_block} <- Keyword.fetch(blocks, :else),
+         true <- clauses_always_match?(ast) do
+      message = ~s("else" clauses will never match because all patterns in ) <>
+                ~s("async with" will always match)
+      IO.warn(message, Macro.Env.stacktrace(__CALLER__))
+    end
+
+    do_async(ast, blocks)
+  end
+
   defmacro async(_, _), do: raise(ArgumentError, ~s("async" macro must be used with "with"))
 
   defp do_async(nil, blocks), do: quote(do: with(unquote(blocks)))
@@ -185,6 +196,13 @@ defmodule AsyncWith do
   # a previous clause at line <line number> always matches`.
   defp contains_always_match_else_condition?(else_block) do
     Enum.any?(else_block, fn {:->, _meta, [[left], _right]} -> AsyncWith.Macro.var?(left) end)
+  end
+
+  defp clauses_always_match?({:=, _meta, _args}), do: true
+  defp clauses_always_match?({:<-, _meta, [left, _right]}), do: AsyncWith.Macro.var?(left)
+  defp clauses_always_match?(ast) do
+    Enum.all?(ast, fn {:<-, _meta, [left, _right]} -> AsyncWith.Macro.var?(left)
+                      _ -> true end)
   end
 
   defp get_success_block(clauses, do_block) do
