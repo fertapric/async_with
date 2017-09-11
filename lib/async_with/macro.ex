@@ -69,6 +69,28 @@ defmodule AsyncWith.Macro do
   defp do_get_guard_vars(ast) when is_tuple(ast), do: ast |> Tuple.to_list() |> do_get_guard_vars()
   defp do_get_guard_vars(_ast), do: []
 
+  @doc """
+  Returns true if the `ast` represents a variable.
+
+  ## Examples
+
+      iex> ast = quote(do: a)
+      iex> AsyncWith.Macro.var?(ast)
+      true
+
+      iex> ast = quote(do: {:ok, 1})
+      iex> AsyncWith.Macro.var?(ast)
+      false
+
+  """
+  @spec var?(Macro.t) :: boolean
+  def var?(ast) do
+    case ast do
+      {var, _meta, args} when is_atom(var) and not is_list(args) -> true
+      _ -> false
+    end
+  end
+
   @doc ~S"""
   Returns an AST node where each variable is replaced by the the result of invoking
   `funtion` on that variable.
