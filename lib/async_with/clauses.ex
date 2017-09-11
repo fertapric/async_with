@@ -27,8 +27,7 @@ defmodule AsyncWith.Clauses do
     * Clauses with match operator - `a = 1`
     * Bare expressions - `my_function(a)` - However, bare expressions are converted to
       clauses with match operator `_ = my_function(a)` to ensure both left and right sides
-      are always present. This homogenization processs simplifies the building of the
-      `AsyncWith.DependencyGraph` and the generation of the final Abstract Syntax Tree.
+      are always present.
 
   Each clause is mapped into the following Elixir struct:
 
