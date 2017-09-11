@@ -31,7 +31,8 @@ defmodule AsyncWith.Clauses do
 
   Each clause is mapped into the following Elixir struct:
 
-    * `function` - Either match `:=` or send `:<-` operators.
+    * `function` - A function that executes the clause and collects the values of its defined
+      variables.
     * `defined_vars` - The list of variables binded/defined in the clause.
     * `used_vars` - The list of variables used in the clause (including pin matching).
     * `guard_vars` - The list of variables used in the guard clause.
@@ -40,7 +41,7 @@ defmodule AsyncWith.Clauses do
   be mapped to an struct with the following attributes:
 
     * `function` would be something similar to
-      `with {:ok, {^a, b}} when is_binary(b) <- echo(c, d), do: {:ok, [b: b]}`.
+      `fn -> with {:ok, {^a, b}} when is_binary(b) <- echo(c, d), do: {:ok, [b: b]} end`.
     * `defined_vars` would be `[:b]`.
     * `used_vars` would be `[:a, :c, :d]`.
     * `guard_vars` would be `[:b]`.
@@ -51,11 +52,10 @@ defmodule AsyncWith.Clauses do
 
     * Variables that are used but not defined in previous clauses are considered external.
       External variables are removed from the list of `used_vars`, as they shouldn't be
-      considered when building the dependency graph.
-    * Variables that are rebinded in next clauses are renamed to avoid collisions when building
-      the dependency graph.
-    * Ignored variables are renamed to avoid compiler warnings. See
-      `AsyncWith.Macro.DependencyGraph.to_ast/2` for more information.
+      considered dependencies.
+    * Variables that are rebinded in next clauses are renamed to avoid collisions when collecting
+      the results.
+    * Ignored variables are renamed to avoid compiler warnings.
 
   Variables are renamed using the following pattern:
 
