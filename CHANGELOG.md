@@ -2,22 +2,22 @@
 
 ## v0.2.1
 
-### 1. Enhancements
+### Enhancements
 
   * [async with] Correct documentation regarding `@async_with_timeout` attribute
 
 ## v0.2.0
 
-### 1. Enhancements
+### Enhancements
 
   * [async with] Optimize implementation
   * [async with] Use same timeout exit format as `Task`
 
-### 2. Bug fixes
+### Bug fixes
 
   * [async with] Ensure asynchronous execution of all clauses as soon as their dependencies are fulfilled
 
-### 3. Deprecations
+### Deprecations
 
   * [DOT] Deprecate the `DOT` module.
   * [DependencyGraph] Deprecate the `DependencyGraph` module.
