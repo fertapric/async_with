@@ -49,7 +49,7 @@ defmodule AsyncWith.Mixfile do
       maintainers: ["Fernando Tapia Rico"],
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/fertapric/async_with"},
-      files: ~w(mix.exs README.md lib)
+      files: ~w(mix.exs LICENSE README.md lib)
     ]
   end
 
