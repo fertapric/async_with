@@ -93,7 +93,7 @@ defmodule AsyncWith.Macro do
 
   @doc ~S"""
   Returns an AST node where each variable is replaced by the the result of invoking
-  `funtion` on that variable.
+  `function` on that variable.
 
   ## Examples
 
@@ -114,7 +114,7 @@ defmodule AsyncWith.Macro do
 
   @doc ~S"""
   Returns an AST node where each pinned variable `^var` is replaced by the the result of invoking
-  `funtion` on that variable.
+  `function` on that variable.
 
   ## Examples
 
