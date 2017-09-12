@@ -1,6 +1,6 @@
 # Changelog
 
-## Current
+## v0.2.2
 
 ### Enhancements
 
@@ -8,7 +8,7 @@
 
 ### Bug fixes
 
-  * [async with] Fix compiler warnings produced when one of the `async with` clauses followed an always match pattern (i.e. `a <- 1`). 
+  * [async with] Fix compiler warnings produced when one of the `async with` clauses followed an always match pattern (i.e. `a <- 1`).
 
 ## v0.2.1
 
