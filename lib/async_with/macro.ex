@@ -21,7 +21,7 @@ defmodule AsyncWith.Macro do
   defp do_get_vars({:_, _meta, _args}), do: []
   defp do_get_vars({var, _meta, args}) when is_atom(var) and not is_list(args), do: [var]
   defp do_get_vars(ast) when is_list(ast), do: Enum.flat_map(ast, &do_get_vars/1)
-  defp do_get_vars(ast) when is_tuple(ast), do: ast |> Tuple.to_list() |> do_get_vars()
+  defp do_get_vars(ast) when is_tuple(ast), do: do_get_vars(Tuple.to_list(ast))
   defp do_get_vars(_ast), do: []
 
   @doc """
@@ -43,10 +43,7 @@ defmodule AsyncWith.Macro do
 
   defp do_get_pinned_vars({:^, _meta, args}), do: get_vars(args)
   defp do_get_pinned_vars(ast) when is_list(ast), do: Enum.flat_map(ast, &do_get_pinned_vars/1)
-
-  defp do_get_pinned_vars(ast) when is_tuple(ast),
-    do: ast |> Tuple.to_list() |> do_get_pinned_vars()
-
+  defp do_get_pinned_vars(ast) when is_tuple(ast), do: do_get_pinned_vars(Tuple.to_list(ast))
   defp do_get_pinned_vars(_ast), do: []
 
   @doc """
@@ -68,10 +65,7 @@ defmodule AsyncWith.Macro do
 
   defp do_get_guard_vars({:when, _meta, [_left, right]}), do: get_vars(right)
   defp do_get_guard_vars(ast) when is_list(ast), do: Enum.flat_map(ast, &do_get_guard_vars/1)
-
-  defp do_get_guard_vars(ast) when is_tuple(ast),
-    do: ast |> Tuple.to_list() |> do_get_guard_vars()
-
+  defp do_get_guard_vars(ast) when is_tuple(ast), do: do_get_guard_vars(Tuple.to_list(ast))
   defp do_get_guard_vars(_ast), do: []
 
   @doc """
@@ -111,10 +105,7 @@ defmodule AsyncWith.Macro do
   @spec map_vars(Macro.t(), function) :: Macro.t()
   def map_vars(ast, function)
   def map_vars({:_, _meta, _args} = ast, _fun), do: ast
-
-  def map_vars({var, meta, args}, fun) when is_atom(var) and not is_list(args),
-    do: fun.({var, meta, args})
-
+  def map_vars({var, _, args} = ast, fun) when is_atom(var) and not is_list(args), do: fun.(ast)
   def map_vars(ast, fun) when is_list(ast), do: Enum.map(ast, &map_vars(&1, fun))
   def map_vars(ast, fun) when is_tuple(ast), do: tuple_map(ast, &map_vars(&1, fun))
   def map_vars(ast, _fun), do: ast
