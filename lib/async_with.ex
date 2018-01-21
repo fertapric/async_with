@@ -48,6 +48,7 @@ defmodule AsyncWith do
   """
 
   alias AsyncWith.Clauses
+  alias AsyncWith.Macro, as: M
 
   defmacro __using__(_) do
     quote do
@@ -133,26 +134,25 @@ defmodule AsyncWith do
   """
   defmacro async(with_expression, blocks)
 
-  defmacro async({:with, _meta, ast}, blocks) do
-    with {:ok, _else_block} <- Keyword.fetch(blocks, :else),
-         true <- clauses_always_match?(ast) do
-      message =
-        ~s("else" clauses will never match because all patterns in ) <>
-          ~s("async with" will always match)
+  defmacro async({:with, _meta, nil}, blocks), do: quote(do: with(unquote(blocks)))
 
-      IO.warn(message, Macro.Env.stacktrace(__CALLER__))
-    end
-
-    do_async(ast, blocks)
+  defmacro async({:with, _meta, ast}, do: do_block, else: else_block) do
+    emit_warning_if_clauses_always_match(ast, Macro.Env.stacktrace(__CALLER__))
+    do_async(ast, do: do_block, else: prepare_else_block(else_block))
   end
+
+  defmacro async({:with, _meta, ast}, do: do_block) do
+    emit_warning_if_clauses_always_match(ast, Macro.Env.stacktrace(__CALLER__))
+    do_async(ast, do: do_block, else: quote(do: (error -> error)))
+  end
+
+  defmacro async({:with, _meta, _ast}, _), do: raise(~s(missing :do option in "async with"))
 
   defmacro async(_, _), do: raise(ArgumentError, ~s("async" macro must be used with "with"))
 
-  defp do_async(nil, blocks), do: quote(do: with(unquote(blocks)))
-
-  defp do_async(ast, blocks) do
+  defp do_async(ast, do: do_block, else: else_block) do
     clauses = Clauses.from_ast(ast)
-    {success_block, error_block} = get_success_and_error_blocks(clauses, blocks)
+    success_block = get_success_block(clauses, do_block)
 
     quote do
       task =
@@ -166,50 +166,50 @@ defmodule AsyncWith do
       case Task.yield(task, @async_with_timeout) || Task.shutdown(task) || timeout_exit do
         {:ok, {:ok, values}} -> unquote(success_block)
         {:ok, {:match_error, %MatchError{term: term}}} -> raise(MatchError, term: term)
-        {:ok, {:error, error}} -> unquote(error_block)
-        error -> unquote(error_block)
+        {:ok, {:error, error}} -> case error, do: unquote(else_block)
+        error -> case error, do: unquote(else_block)
       end
     end
   end
 
-  defp get_success_and_error_blocks(clauses, blocks) do
-    {do_block, else_block} = get_do_and_else_blocks(blocks)
-    {get_success_block(clauses, do_block), get_error_block(else_block)}
-  end
-
-  # Returns a tuple `{do_block, else_block}` representing the `:do` and `:else` blocks
-  # of the `async with` expression.
+  # Emits a warning if all patterns in `async with` will always match.
   #
-  # Raises `missing :do option in "async with"` if the `:do` block is not present.
-  defp get_do_and_else_blocks(do: do_block, else: else_block) do
-    if contains_always_match_else_condition?(else_block) do
-      {do_block, else_block}
-    else
-      {do_block, else_block ++ quote(do: (term -> raise(AsyncWith.ClauseError, term: term)))}
+  # This mimics `with/1` behavior.
+  defp emit_warning_if_clauses_always_match(ast, stacktrace) do
+    if clauses_always_match?(ast) do
+      message =
+        ~s("else" clauses will never match because all patterns in "async with" will always match)
+
+      IO.warn(message, stacktrace)
     end
   end
 
-  defp get_do_and_else_blocks(do: do_block) do
-    default_else_block = quote(do: (error -> error))
-    get_do_and_else_blocks(do: do_block, else: default_else_block)
-  end
-
-  defp get_do_and_else_blocks(_), do: raise(~s(missing :do option in "async with"))
-
-  # Checks for match-all else conditions to prevent `warning: this clause cannot match because
-  # a previous clause at line <line number> always matches`.
-  defp contains_always_match_else_condition?(else_block) do
-    Enum.any?(else_block, fn {:->, _meta, [[left], _right]} -> AsyncWith.Macro.var?(left) end)
-  end
-
-  defp clauses_always_match?({:=, _meta, _args}), do: true
-  defp clauses_always_match?({:<-, _meta, [left, _right]}), do: AsyncWith.Macro.var?(left)
-
-  defp clauses_always_match?(ast) do
-    Enum.all?(ast, fn
-      {:<-, _meta, [left, _right]} -> AsyncWith.Macro.var?(left)
+  # Returns true if all patterns in `clauses` will always match.
+  defp clauses_always_match?(clauses) when is_list(clauses) do
+    Enum.all?(clauses, fn
+      {:<-, _meta, [left, _right]} -> M.var?(left)
       _ -> true
     end)
+  end
+
+  defp clauses_always_match?(clause), do: clauses_always_match?([clause])
+
+  # Prepares the `else` block to raise `AsyncWith.ClauseError` if none of its
+  # clauses match.
+  defp prepare_else_block(else_block) do
+    if contains_always_match_else_clauses?(else_block) do
+      else_block
+    else
+      else_block ++ quote(do: (term -> raise(AsyncWith.ClauseError, term: term)))
+    end
+  end
+
+  # Returns true if the `else_block` contains a match-all else clause.
+  #
+  # This prevents messages like `warning: this clause cannot match because
+  # a previous clause at line <line number> always matches`.
+  defp contains_always_match_else_clauses?(else_block) do
+    Enum.any?(else_block, fn {:->, _meta, [[left], _right]} -> M.var?(left) end)
   end
 
   defp get_success_block(clauses, do_block) do
@@ -270,12 +270,6 @@ defmodule AsyncWith do
     Enum.reject(vars, fn var ->
       not var in do_block_vars and (var in used_vars or var in guard_vars)
     end)
-  end
-
-  defp get_error_block(else_block) do
-    quote do
-      case error, do: unquote(else_block)
-    end
   end
 
   # Returns the values of all the variables binded in `clauses`.
