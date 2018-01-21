@@ -19,7 +19,7 @@ defmodule AsyncWith.Cover do
 
     output = opts[:output]
     ignore_modules = Keyword.get(opts, :ignore_modules, [])
-    modules = filter_modules(:cover.modules, [__MODULE__ | ignore_modules])
+    modules = filter_modules(:cover.modules(), [__MODULE__ | ignore_modules])
 
     fn ->
       File.mkdir_p!(output)
@@ -28,12 +28,13 @@ defmodule AsyncWith.Cover do
       case get_coverage(modules) do
         {0, non_covered} ->
           IO.puts("Covered 0 lines of #{non_covered} (0%)")
+
         {covered, non_covered} ->
           lines = covered + non_covered
           coverage = Float.round(covered * 100 / lines, 2)
 
           IO.puts("Covered #{covered} lines of #{lines} (#{coverage}%)")
-        end
+      end
     end
   end
 
@@ -42,7 +43,7 @@ defmodule AsyncWith.Cover do
   end
 
   defp get_coverage(modules) when is_list(modules) do
-    Enum.reduce(modules, {0, 0}, fn(module, {total_covered, total_non_covered}) ->
+    Enum.reduce(modules, {0, 0}, fn module, {total_covered, total_non_covered} ->
       {covered, non_covered} = get_module_coverage(module)
       {total_covered + covered, total_non_covered + non_covered}
     end)
@@ -53,7 +54,7 @@ defmodule AsyncWith.Cover do
 
     functions
     |> filter_functions()
-    |> Enum.reduce({0, 0}, fn({_, {covered, non_covered}}, {total_covered, total_non_covered}) ->
+    |> Enum.reduce({0, 0}, fn {_, {covered, non_covered}}, {total_covered, total_non_covered} ->
       {total_covered + covered, total_non_covered + non_covered}
     end)
   end
@@ -63,9 +64,11 @@ defmodule AsyncWith.Cover do
   end
 
   defp filter_functions(functions) do
-    Enum.reject(functions, fn {{_, :__info__, _}, _} -> true
-                              {{_, :__struct__, _}, _} -> true
-                              {{_, :"MACRO-__using__", _}, _} -> true
-                              _ -> false end)
+    Enum.reject(functions, fn
+      {{_, :__info__, _}, _} -> true
+      {{_, :__struct__, _}, _} -> true
+      {{_, :"MACRO-__using__", _}, _} -> true
+      _ -> false
+    end)
   end
 end

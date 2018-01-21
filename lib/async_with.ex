@@ -136,8 +136,10 @@ defmodule AsyncWith do
   defmacro async({:with, _meta, ast}, blocks) do
     with {:ok, _else_block} <- Keyword.fetch(blocks, :else),
          true <- clauses_always_match?(ast) do
-      message = ~s("else" clauses will never match because all patterns in ) <>
-                ~s("async with" will always match)
+      message =
+        ~s("else" clauses will never match because all patterns in ) <>
+          ~s("async with" will always match)
+
       IO.warn(message, Macro.Env.stacktrace(__CALLER__))
     end
 
@@ -147,15 +149,17 @@ defmodule AsyncWith do
   defmacro async(_, _), do: raise(ArgumentError, ~s("async" macro must be used with "with"))
 
   defp do_async(nil, blocks), do: quote(do: with(unquote(blocks)))
+
   defp do_async(ast, blocks) do
     clauses = Clauses.from_ast(ast)
     {success_block, error_block} = get_success_and_error_blocks(clauses, blocks)
 
     quote do
-      task = Task.Supervisor.async_nolink(AsyncWith.TaskSupervisor, fn ->
-        clauses = Enum.map(unquote(Enum.map(clauses, &Map.to_list/1)), &Enum.into(&1, %{}))
-        AsyncWith.async_with(clauses)
-      end)
+      task =
+        Task.Supervisor.async_nolink(AsyncWith.TaskSupervisor, fn ->
+          clauses = Enum.map(unquote(Enum.map(clauses, &Map.to_list/1)), &Enum.into(&1, %{}))
+          AsyncWith.async_with(clauses)
+        end)
 
       timeout_exit = {:exit, {:timeout, {unquote(__MODULE__), :async, [@async_with_timeout]}}}
 
@@ -200,9 +204,12 @@ defmodule AsyncWith do
 
   defp clauses_always_match?({:=, _meta, _args}), do: true
   defp clauses_always_match?({:<-, _meta, [left, _right]}), do: AsyncWith.Macro.var?(left)
+
   defp clauses_always_match?(ast) do
-    Enum.all?(ast, fn {:<-, _meta, [left, _right]} -> AsyncWith.Macro.var?(left)
-                      _ -> true end)
+    Enum.all?(ast, fn
+      {:<-, _meta, [left, _right]} -> AsyncWith.Macro.var?(left)
+      _ -> true
+    end)
   end
 
   defp get_success_block(clauses, do_block) do
@@ -320,9 +327,10 @@ defmodule AsyncWith do
   #   11. Return [a: 1, b: 3, c: {1, 3}]
   #
   @doc false
-  @spec async_with([Clauses.clause], keyword) :: {:ok, keyword} | any
+  @spec async_with([Clauses.clause()], keyword) :: {:ok, keyword} | any
   def async_with(clauses, results \\ [])
   def async_with([], results), do: {:ok, results}
+
   def async_with(clauses, results) do
     clauses = spawn_tasks(clauses, results)
 
@@ -341,14 +349,20 @@ defmodule AsyncWith do
   end
 
   defp remove_clause(clauses, ref) do
-    clause = Enum.find(clauses, fn %{task: %Task{ref: ^ref}} -> true
-                                   _ -> false end)
+    clause =
+      Enum.find(clauses, fn
+        %{task: %Task{ref: ^ref}} -> true
+        _ -> false
+      end)
+
     clauses -- [clause]
   end
 
   defp shutdown_tasks(clauses) do
-    Enum.each(clauses, fn %{task: task} -> Task.shutdown(task)
-                          _ -> nil end)
+    Enum.each(clauses, fn
+      %{task: task} -> Task.shutdown(task)
+      _ -> nil
+    end)
   end
 
   # Spawns all the tasks whose dependencies have been processed.
@@ -366,8 +380,10 @@ defmodule AsyncWith do
   end
 
   defp spawn_task?(%{task: _task}, _processed_vars), do: false
+
   defp spawn_task?(%{used_vars: used_vars}, processed_vars) do
-    used_vars -- processed_vars == [] # All the dependencies are processed
+    # All the dependencies are processed
+    used_vars -- processed_vars == []
   end
 
   defp reason(:noconnection, proc), do: {:nodedown, monitor_node(proc)}

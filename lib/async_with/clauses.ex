@@ -2,11 +2,11 @@ defmodule AsyncWith.Clauses do
   @moduledoc false
 
   @type clause :: %{
-     function: Macro.t,
-     defined_vars: [atom],
-     used_vars: [atom],
-     guard_vars: [atom]
-   }
+          function: Macro.t(),
+          defined_vars: [atom],
+          used_vars: [atom],
+          guard_vars: [atom]
+        }
 
   @doc """
   Aggregates the list of variables of the same `type`.
@@ -84,7 +84,7 @@ defmodule AsyncWith.Clauses do
       end
 
   """
-  @spec from_ast(Macro.t) :: [clause]
+  @spec from_ast(Macro.t()) :: [clause]
   def from_ast(ast) do
     ast
     |> Enum.map(&one_from_ast/1)
@@ -120,25 +120,27 @@ defmodule AsyncWith.Clauses do
   end
 
   defp remove_external_vars(clauses) do
-    {clauses, _defined_vars} = Enum.map_reduce(clauses, [], fn clause, defined_vars ->
-      clause = %{clause | used_vars: common_vars(clause.used_vars, defined_vars)}
-      defined_vars = Enum.uniq(defined_vars ++ clause.defined_vars)
+    {clauses, _defined_vars} =
+      Enum.map_reduce(clauses, [], fn clause, defined_vars ->
+        clause = %{clause | used_vars: common_vars(clause.used_vars, defined_vars)}
+        defined_vars = Enum.uniq(defined_vars ++ clause.defined_vars)
 
-      {clause, defined_vars}
-    end)
+        {clause, defined_vars}
+      end)
 
     clauses
   end
 
-  defp common_vars(var_list_1, var_list_2), do: var_list_1 -- (var_list_1 -- var_list_2)
+  defp common_vars(var_list_1, var_list_2), do: var_list_1 -- var_list_1 -- var_list_2
 
   defp rename_rebinded_vars(clauses) do
-    {clauses, var_renamings} = Enum.map_reduce(clauses, %{}, fn clause, var_renamings ->
-      clause = rename_used_vars(clause, var_renamings)
-      var_renamings = update_var_renamings(var_renamings, clause.defined_vars)
+    {clauses, var_renamings} =
+      Enum.map_reduce(clauses, %{}, fn clause, var_renamings ->
+        clause = rename_used_vars(clause, var_renamings)
+        var_renamings = update_var_renamings(var_renamings, clause.defined_vars)
 
-      {rename_defined_vars(clause, var_renamings), var_renamings}
-    end)
+        {rename_defined_vars(clause, var_renamings), var_renamings}
+      end)
 
     # Rename exposed variables back to their original names so they can be used in
     # the `:do` block
@@ -227,6 +229,7 @@ defmodule AsyncWith.Clauses do
           quote do
             fn results ->
               unquote(assignments)
+
               with unquote(clause.left) <- unquote(clause.right) do
                 unquote({:ok, results})
               else
@@ -234,6 +237,7 @@ defmodule AsyncWith.Clauses do
               end
             end
           end
+
         %{operator: :=} ->
           quote do
             fn results ->
