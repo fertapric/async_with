@@ -104,6 +104,28 @@ end
 
 Documentation is available at https://hexdocs.pm/async_with
 
+## Code formatter
+
+[As described in `Code.format_string!/2` documentation](https://hexdocs.pm/elixir/Code.html#format_string!/2-parens-and-no-parens-in-function-calls), Elixir will add parens to all calls except for:
+
+1. calls that have do/end blocks
+2. local calls without parens where the name and arity of the local call is also listed under `:locals_without_parens`
+
+`async with` expressions should fall under the first category, because they are similar to `with/1` calls. This means that `async/2` calls should be kept without parens.
+
+This is then the recommended `.formatter.exs` configuration:
+
+```elixir
+[
+  # Regular formatter configuration
+  # ...
+
+  import_deps: [:async_with]
+]
+```
+
+As an alternative, you can add `async/2` directly to the list `:locals_without_parens`.
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/fertapric/async_with. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
