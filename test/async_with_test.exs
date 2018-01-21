@@ -39,11 +39,12 @@ defmodule AsyncWithTest do
 
   test "raises an ArgumentError error if 'async' is not followed by 'with'" do
     assert_raise(ArgumentError, ~s("async" macro must be used with "with"), fn ->
-      ast = quote do
-        async a <- 1 do
-          2
+      ast =
+        quote do
+          async a <- 1 do
+            2
+          end
         end
-      end
 
       Macro.expand(ast, __ENV__)
     end)
@@ -143,9 +144,9 @@ defmodule AsyncWithTest do
   test "works with clauses with ignored and unbound variables" do
     result =
       async with _..42 <- 1..42,
-                {_ok, a} <- echo("a"),
-                {_, _} = b <- echo("b(#{a})"),
-                {_, _} <- {"c", "c"} do
+                 {_ok, a} <- echo("a"),
+                 {_, _} = b <- echo("b(#{a})"),
+                 {_, _} <- {"c", "c"} do
         {:ok, b} = b
         Enum.join([a, b], " ")
       end
@@ -223,15 +224,14 @@ defmodule AsyncWithTest do
       end
 
     assert result == "1 2"
-    assert Agent.get(agent, &(&1)) == 3
+    assert Agent.get(agent, & &1) == 3
 
     :ok = Agent.stop(agent)
   end
 
   test "raises MatchError when the sides of a clause does not match" do
     assert_raise(MatchError, "no match of right hand side value: :error", fn ->
-      async with {:ok, a} <- echo("a"),
-                 {:ok, b} = error(a) do
+      async with {:ok, a} <- echo("a"), {:ok, b} = error(a) do
         Enum.join([a, b], " ")
       end
     end)
@@ -288,20 +288,20 @@ defmodule AsyncWithTest do
   end
 
   test "does not leak variables to else conditions" do
-   value = 1
+    value = 1
 
-   result =
-     async with 1 <- value,
-                value = 2,
-                :ok <- error() do
-      value
-    else
-      _ -> value
-    end
+    result =
+      async with 1 <- value,
+                 value = 2,
+                 :ok <- error() do
+        value
+      else
+        _ -> value
+      end
 
-   assert result == 1
-   assert value == 1
- end
+    assert result == 1
+    assert value == 1
+  end
 
   test "raises AsyncWith.ClauseError when there are not else condition that match the error" do
     assert_raise(AsyncWith.ClauseError, "no async with clause matching: :error", fn ->
@@ -441,7 +441,7 @@ defmodule AsyncWithTest do
         Enum.join([a, b, c, d, e, f, g], " ")
       end
 
-    pids = Agent.get(agent, &(&1))
+    pids = Agent.get(agent, & &1)
 
     assert result == :error
     refute Process.alive?(pids.e)
@@ -466,7 +466,7 @@ defmodule AsyncWithTest do
         Enum.join([a, b, c, d, e, f, g], " ")
       end
 
-    pids = Agent.get(agent, &(&1))
+    pids = Agent.get(agent, & &1)
 
     assert {:exit, {%RuntimeError{message: "oops"}, _}} = result
     refute Process.alive?(pids.d)
@@ -490,7 +490,7 @@ defmodule AsyncWithTest do
         Enum.join([a, b, c, d, e, f, g], " ")
       end
 
-    pids = Agent.get(agent, &(&1))
+    pids = Agent.get(agent, & &1)
 
     assert result == {:exit, {:timeout, {AsyncWith, :async, [50]}}}
     refute Process.alive?(pids.d)
@@ -534,10 +534,11 @@ defmodule AsyncWithTest do
   test "optimizes the execution (2)" do
     {:ok, agent} = Agent.start_link(fn -> 0 end)
 
-    task = Task.async(fn ->
-      :timer.sleep(1)
-      Agent.get(agent, &(&1))
-    end)
+    task =
+      Task.async(fn ->
+        :timer.sleep(1)
+        Agent.get(agent, & &1)
+      end)
 
     result =
       async with {:ok, a} <- echo("a"),
@@ -547,7 +548,8 @@ defmodule AsyncWithTest do
         Enum.join([a, b, c, d], " ")
       end
 
-    assert Task.await(task) == 1 # c should not wait for b
+    # c should not wait for b
+    assert Task.await(task) == 1
     assert result == "a b c(a) d(a, b)"
 
     :ok = Agent.stop(agent)

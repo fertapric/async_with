@@ -11,7 +11,7 @@ defmodule AsyncWith.Macro do
       [:ok, :a, :b, :_c, :d, :e]
 
   """
-  @spec get_vars(Macro.t) :: [atom]
+  @spec get_vars(Macro.t()) :: [atom]
   def get_vars(ast) do
     ast
     |> do_get_vars()
@@ -34,7 +34,7 @@ defmodule AsyncWith.Macro do
       [:ok]
 
   """
-  @spec get_pinned_vars(Macro.t) :: [atom]
+  @spec get_pinned_vars(Macro.t()) :: [atom]
   def get_pinned_vars(ast) do
     ast
     |> do_get_pinned_vars()
@@ -43,8 +43,10 @@ defmodule AsyncWith.Macro do
 
   defp do_get_pinned_vars({:^, _meta, args}), do: get_vars(args)
   defp do_get_pinned_vars(ast) when is_list(ast), do: Enum.flat_map(ast, &do_get_pinned_vars/1)
+
   defp do_get_pinned_vars(ast) when is_tuple(ast),
     do: ast |> Tuple.to_list() |> do_get_pinned_vars()
+
   defp do_get_pinned_vars(_ast), do: []
 
   @doc """
@@ -57,7 +59,7 @@ defmodule AsyncWith.Macro do
       [:a, :b]
 
   """
-  @spec get_guard_vars(Macro.t) :: [atom]
+  @spec get_guard_vars(Macro.t()) :: [atom]
   def get_guard_vars(ast) do
     ast
     |> do_get_guard_vars()
@@ -66,7 +68,10 @@ defmodule AsyncWith.Macro do
 
   defp do_get_guard_vars({:when, _meta, [_left, right]}), do: get_vars(right)
   defp do_get_guard_vars(ast) when is_list(ast), do: Enum.flat_map(ast, &do_get_guard_vars/1)
-  defp do_get_guard_vars(ast) when is_tuple(ast), do: ast |> Tuple.to_list() |> do_get_guard_vars()
+
+  defp do_get_guard_vars(ast) when is_tuple(ast),
+    do: ast |> Tuple.to_list() |> do_get_guard_vars()
+
   defp do_get_guard_vars(_ast), do: []
 
   @doc """
@@ -83,7 +88,7 @@ defmodule AsyncWith.Macro do
       false
 
   """
-  @spec var?(Macro.t) :: boolean
+  @spec var?(Macro.t()) :: boolean
   def var?(ast) do
     case ast do
       {var, _meta, args} when is_atom(var) and not is_list(args) -> true
@@ -103,11 +108,13 @@ defmodule AsyncWith.Macro do
       "[^var_a, {1, %{b: var_c}, [2, var_d], [e: ^var_f]}, _]"
 
   """
-  @spec map_vars(Macro.t, function) :: Macro.t
+  @spec map_vars(Macro.t(), function) :: Macro.t()
   def map_vars(ast, function)
   def map_vars({:_, _meta, _args} = ast, _fun), do: ast
+
   def map_vars({var, meta, args}, fun) when is_atom(var) and not is_list(args),
     do: fun.({var, meta, args})
+
   def map_vars(ast, fun) when is_list(ast), do: Enum.map(ast, &map_vars(&1, fun))
   def map_vars(ast, fun) when is_tuple(ast), do: tuple_map(ast, &map_vars(&1, fun))
   def map_vars(ast, _fun), do: ast
@@ -124,7 +131,7 @@ defmodule AsyncWith.Macro do
       "[^var_a, {1, %{b: c}, [2, d], [e: ^var_f]}, _]"
 
   """
-  @spec map_pinned_vars(Macro.t, function) :: Macro.t
+  @spec map_pinned_vars(Macro.t(), function) :: Macro.t()
   def map_pinned_vars(ast, function)
   def map_pinned_vars({:^, meta, args}, fun), do: {:^, meta, map_vars(args, fun)}
   def map_pinned_vars(ast, fun) when is_list(ast), do: Enum.map(ast, &map_pinned_vars(&1, fun))
@@ -142,7 +149,7 @@ defmodule AsyncWith.Macro do
       "[^foo, {1, %{b: bar}, [2, d], [e: qux]}]"
 
   """
-  @spec rename_vars(Macro.t, map) :: Macro.t
+  @spec rename_vars(Macro.t(), map) :: Macro.t()
   def rename_vars(ast, var_renamings) do
     map_vars(ast, fn {var, meta, context} ->
       {Map.get(var_renamings, var, var), meta, context}
@@ -160,7 +167,7 @@ defmodule AsyncWith.Macro do
       "[^foo, {1, %{b: c}, [2, d], [e: ^qux]}]"
 
   """
-  @spec rename_pinned_vars(Macro.t, map) :: Macro.t
+  @spec rename_pinned_vars(Macro.t(), map) :: Macro.t()
   def rename_pinned_vars(ast, var_renamings) do
     map_pinned_vars(ast, fn {var, meta, context} ->
       {Map.get(var_renamings, var, var), meta, context}
