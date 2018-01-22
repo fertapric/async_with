@@ -25,7 +25,7 @@ defmodule AsyncWith.Macro do
   defp do_get_vars(_ast), do: []
 
   @doc """
-  Returns the list of pinned variables `^var` of the `ast`.
+  Returns the list of pinned variables (`^var`) of the `ast`.
 
   ## Examples
 
@@ -91,7 +91,7 @@ defmodule AsyncWith.Macro do
   end
 
   @doc ~S"""
-  Returns an AST node where each variable is replaced by the the result of invoking
+  Returns an AST node where each variable is replaced by the result of invoking
   `function` on that variable.
 
   ## Examples
@@ -111,8 +111,8 @@ defmodule AsyncWith.Macro do
   def map_vars(ast, _fun), do: ast
 
   @doc ~S"""
-  Returns an AST node where each pinned variable `^var` is replaced by the the result of invoking
-  `function` on that variable.
+  Returns an AST node where each pinned variable (`^var`) is replaced by the
+  result of invoking `function` on that variable.
 
   ## Examples
 
@@ -148,7 +148,7 @@ defmodule AsyncWith.Macro do
   end
 
   @doc """
-  Renames the pinned variables `^var` in `ast`.
+  Renames the pinned variables (`^var`) in `ast`.
 
   ## Examples
 
