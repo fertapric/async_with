@@ -124,7 +124,7 @@ This is then the recommended `.formatter.exs` configuration:
 ]
 ```
 
-As an alternative, you can add `async/2` directly to the list `:locals_without_parens`.
+As an alternative, you can add `async: 1` and `async: 2` directly to the list `:locals_without_parens`.
 
 ## Contributing
 
