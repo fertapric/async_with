@@ -50,10 +50,10 @@ defmodule AsyncWith.Cover do
   end
 
   defp get_module_coverage(module) do
-    {:ok, functions} = :cover.analyse(module, :coverage, :function)
+    {:ok, lines_coverage} = :cover.analyse(module, :coverage, :line)
 
-    functions
-    |> filter_functions()
+    lines_coverage
+    |> remove_hidden_lines()
     |> Enum.reduce({0, 0}, fn {_, {covered, non_covered}}, {total_covered, total_non_covered} ->
       {total_covered + covered, total_non_covered + non_covered}
     end)
@@ -63,11 +63,9 @@ defmodule AsyncWith.Cover do
     Enum.reject(modules, &Enum.member?(ignore_list, &1))
   end
 
-  defp filter_functions(functions) do
-    Enum.reject(functions, fn
-      {{_, :__info__, _}, _} -> true
-      {{_, :__struct__, _}, _} -> true
-      {{_, :"MACRO-__using__", _}, _} -> true
+  defp remove_hidden_lines(lines_coverage) do
+    Enum.reject(lines_coverage, fn
+      {{_, 0}, _} -> true
       _ -> false
     end)
   end
