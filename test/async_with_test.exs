@@ -13,52 +13,141 @@ defmodule AsyncWithTest do
       ast =
         quote do
           async a <- 1 do
+            a
+          end
+        end
+
+      Code.eval_quoted(ast)
+    end)
+  end
+
+  test "raises an ArgumentError error if 'async' is not followed by 'with' (without clauses)" do
+    assert_raise(ArgumentError, ~s("async" macro must be used with "with"), fn ->
+      ast =
+        quote do
+          async do
             2
           end
         end
 
-      Macro.expand(ast, __ENV__)
+      Code.eval_quoted(ast)
     end)
   end
 
-  describe "when all patterns in 'async with' will always match" do
-    test "emits a warning if 'else' clauses will never match" do
-      expexted_message =
-        ~s("else" clauses will never match because all patterns in "async with" will always match)
+  test "raises an ArgumentError error if 'async' is not followed by 'with' (without :do block)" do
+    assert_raise(ArgumentError, ~s("async" macro must be used with "with"), fn ->
+      ast =
+        quote do
+          async(a <- 1)
+        end
 
-      message =
-        capture_io(:stderr, fn ->
-          ast =
-            quote do
+      Code.eval_quoted(ast)
+    end)
+  end
+
+  test "raises a CompileError error if :do option is missing" do
+    assert_raise(CompileError, ~r/missing :do option in "async with"/, fn ->
+      ast =
+        quote do
+          async(with a <- 1)
+        end
+
+      Code.eval_quoted(ast)
+    end)
+  end
+
+  test "raises a CompileError error if :do option is missing (without clauses)" do
+    assert_raise(CompileError, ~r/missing :do option in "async with"/, fn ->
+      ast =
+        quote do
+          async(with)
+        end
+
+      Code.eval_quoted(ast)
+    end)
+  end
+
+  test "emits a warning if 'else' clauses will never match" do
+    expexted_message =
+      ~s("else" clauses will never match because all patterns in "async with" will always match)
+
+    unexpected_message =
+      ~s("else" clauses will never match because all patterns in "with" will always match)
+
+    message =
+      capture_io(:stderr, fn ->
+        string = """
+          defmodule AsyncWith.Test.A do
+            use AsyncWith
+
+            def main do
               async with a <- 1, b = 2 do
+                a + b
+              else
+                :error -> :error
+              end
+            end
+          end
+        """
+
+        Code.eval_string(string)
+      end)
+
+    assert warnings_count(message) == 1
+    assert message =~ expexted_message
+    refute message =~ unexpected_message
+  end
+
+  test "emits a warning if 'else' clauses will never match (without clauses)" do
+    expexted_message =
+      ~s("else" clauses will never match because all patterns in "async with" will always match)
+
+    unexpected_message =
+      ~s("else" clauses will never match because all patterns in "with" will always match)
+
+    message =
+      capture_io(:stderr, fn ->
+        string = """
+          defmodule AsyncWith.Test.B do
+            use AsyncWith
+
+            def main do
+              async with do
                 2
               else
                 :error -> :error
               end
             end
+          end
+        """
 
-          Macro.expand(ast, __ENV__)
-        end)
+        Code.eval_string(string)
+      end)
 
-      assert message =~ "warning:"
-      assert message =~ expexted_message
-    end
+    assert warnings_count(message) == 1
+    assert message =~ expexted_message
+    refute message =~ unexpected_message
+  end
 
-    test "does not emit a warning without 'else' clauses" do
-      message =
-        capture_io(:stderr, fn ->
-          ast =
-            quote do
+  test "does not emit a warning if 'else' clauses are missing and clauses will always match" do
+    message =
+      capture_io(:stderr, fn ->
+        string = """
+          defmodule AsyncWith.Test.C do
+            use AsyncWith
+
+            def main do
               async with a <- 1, b = 2 do
-                2
+                a + b
               end
             end
+          end
+        """
 
-          Macro.expand(ast, __ENV__)
-        end)
+        Code.eval_string(string)
+      end)
 
-      assert message == ""
-    end
+    assert message == ""
   end
 
   test "works without clauses" do
@@ -542,7 +631,7 @@ defmodule AsyncWithTest do
     assert finished_at - started_at < 95
   end
 
-  test "optimizes the execution (2)" do
+  test "clauses should be executed as soon as their dependencies are resolved" do
     {:ok, agent} = Agent.start_link(fn -> 0 end)
 
     task =
@@ -574,6 +663,10 @@ defmodule AsyncWithTest do
       end
 
     assert result == {:ok, [a: 1]}
+  end
+
+  defp warnings_count(string) do
+    length(String.split(string, "warning:")) - 1
   end
 
   defp delay(delay, value) do
