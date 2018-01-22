@@ -4,37 +4,6 @@ defmodule AsyncWithTest do
 
   @async_with_timeout 50
 
-  defp delay(delay, value) do
-    :timer.sleep(delay)
-    value
-  end
-
-  defp echo(value) do
-    {:ok, value}
-  end
-
-  defp get_true(_value \\ nil) do
-    true
-  end
-
-  defp error(_value \\ nil) do
-    :error
-  end
-
-  defp raise_oops(_value) do
-    raise("oops")
-  end
-
-  defp pid(_value \\ nil) do
-    {:ok, self()}
-  end
-
-  defp register_pid(agent, registry_name) do
-    pid = self()
-    Agent.update(agent, &Map.merge(&1, %{registry_name => pid}))
-    :ok
-  end
-
   doctest AsyncWith
 
   test "raises an ArgumentError error if 'async' is not followed by 'with'" do
@@ -563,5 +532,36 @@ defmodule AsyncWithTest do
       end
 
     assert result == {:ok, [a: 1]}
+  end
+
+  defp delay(delay, value) do
+    :timer.sleep(delay)
+    value
+  end
+
+  defp echo(value) do
+    {:ok, value}
+  end
+
+  defp get_true(_value \\ nil) do
+    true
+  end
+
+  defp error(_value \\ nil) do
+    :error
+  end
+
+  defp raise_oops(_value) do
+    raise("oops")
+  end
+
+  defp pid(_value \\ nil) do
+    {:ok, self()}
+  end
+
+  defp register_pid(agent, registry_name) do
+    pid = self()
+    Agent.update(agent, &Map.merge(&1, %{registry_name => pid}))
+    :ok
   end
 end
