@@ -2,6 +2,8 @@ defmodule AsyncWithTest do
   use ExUnit.Case, async: true
   use AsyncWith
 
+  import ExUnit.CaptureIO
+
   @async_with_timeout 50
 
   doctest AsyncWith
@@ -17,6 +19,46 @@ defmodule AsyncWithTest do
 
       Macro.expand(ast, __ENV__)
     end)
+  end
+
+  describe "when all patterns in 'async with' will always match" do
+    test "emits a warning if 'else' clauses will never match" do
+      expexted_message =
+        ~s("else" clauses will never match because all patterns in "async with" will always match)
+
+      message =
+        capture_io(:stderr, fn ->
+          ast =
+            quote do
+              async with a <- 1, b = 2 do
+                2
+              else
+                :error -> :error
+              end
+            end
+
+          Macro.expand(ast, __ENV__)
+        end)
+
+      assert message =~ "warning:"
+      assert message =~ expexted_message
+    end
+
+    test "does not emit a warning without 'else' clauses" do
+      message =
+        capture_io(:stderr, fn ->
+          ast =
+            quote do
+              async with a <- 1, b = 2 do
+                2
+              end
+            end
+
+          Macro.expand(ast, __ENV__)
+        end)
+
+      assert message == ""
+    end
   end
 
   test "works without clauses" do

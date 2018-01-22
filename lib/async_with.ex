@@ -142,7 +142,6 @@ defmodule AsyncWith do
   end
 
   defmacro async({:with, _meta, ast}, do: do_block) do
-    emit_warning_if_clauses_always_match(ast, Macro.Env.stacktrace(__CALLER__))
     do_async(ast, do: do_block, else: quote(do: (error -> error)))
   end
 
@@ -150,6 +149,8 @@ defmodule AsyncWith do
 
   defmacro async(_, _), do: raise(ArgumentError, ~s("async" macro must be used with "with"))
 
+  # TODO: warning: the result of the expression is ignored (suppress the warning by
+  # assigning the expression to the _ variable)
   defp do_async(ast, do: do_block, else: else_block) do
     clauses = Clauses.from_ast(ast)
     success_block = get_success_block(clauses, do_block)
