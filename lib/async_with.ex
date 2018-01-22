@@ -135,16 +135,16 @@ defmodule AsyncWith do
 
   defmacro async({:with, _meta, nil}, blocks), do: quote(do: with(unquote(blocks)))
 
-  defmacro async({:with, _meta, ast}, do: do_block, else: else_block) do
-    print_warning_message_if_clauses_always_match(ast, Macro.Env.stacktrace(__CALLER__))
-    do_async(ast, do: do_block, else: change_else_block_to_raise_clause_error(else_block))
+  defmacro async({:with, _meta, clauses}, do: do_block, else: else_block) do
+    print_warning_message_if_clauses_always_match(clauses, Macro.Env.stacktrace(__CALLER__))
+    do_async(clauses, do: do_block, else: change_else_block_to_raise_clause_error(else_block))
   end
 
-  defmacro async({:with, _meta, ast}, do: do_block) do
-    do_async(ast, do: do_block, else: quote(do: (error -> error)))
+  defmacro async({:with, _meta, clauses}, do: do_block) do
+    do_async(clauses, do: do_block, else: quote(do: (error -> error)))
   end
 
-  defmacro async({:with, _meta, _ast}, _), do: raise(~s(missing :do option in "async with"))
+  defmacro async({:with, _meta, _clauses}, _), do: raise(~s(missing :do option in "async with"))
 
   defmacro async(_, _), do: raise(ArgumentError, ~s("async" macro must be used with "with"))
 
