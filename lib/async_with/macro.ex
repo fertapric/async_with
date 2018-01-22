@@ -165,6 +165,28 @@ defmodule AsyncWith.Macro do
     end)
   end
 
+  @doc """
+  Renames the ignored variables (`_var`) in `ast`.
+
+  Variables are renamed by appending `@`.
+
+  ## Examples
+
+      iex> ast = quote(do: [^a, {1, %{b: c}, [2, _d], [e: ^f], _}])
+      iex> AsyncWith.Macro.rename_ignored_vars(ast) |> Macro.to_string()
+      "[^a, {1, %{b: c}, [2, @_d], [e: ^f], _}]"
+
+  """
+  @spec rename_ignored_vars(Macro.t()) :: Macro.t()
+  def rename_ignored_vars(ast) do
+    map_vars(ast, fn {var, meta, context} ->
+      case to_string(var) do
+        "_" <> _ -> {:"@#{var}", meta, context}
+        _ -> {var, meta, context}
+      end
+    end)
+  end
+
   defp tuple_map(tuple, fun) do
     tuple
     |> Tuple.to_list()
