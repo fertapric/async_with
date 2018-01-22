@@ -38,7 +38,7 @@ defmodule AsyncWithTest do
     assert_raise(ArgumentError, ~s("async" macro must be used with "with"), fn ->
       ast =
         quote do
-          async(a <- 1)
+          async a <- 1
         end
 
       Code.eval_quoted(ast)
@@ -49,7 +49,7 @@ defmodule AsyncWithTest do
     assert_raise(CompileError, ~r/missing :do option in "async with"/, fn ->
       ast =
         quote do
-          async(with a <- 1)
+          async with a <- 1
         end
 
       Code.eval_quoted(ast)
@@ -60,7 +60,7 @@ defmodule AsyncWithTest do
     assert_raise(CompileError, ~r/missing :do option in "async with"/, fn ->
       ast =
         quote do
-          async(with)
+          async with
         end
 
       Code.eval_quoted(ast)
