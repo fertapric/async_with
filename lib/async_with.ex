@@ -49,11 +49,17 @@ defmodule AsyncWith do
 
   alias AsyncWith.Clauses
 
+  @default_timeout 5_000
+
   defmacro __using__(_) do
+    # Module attributes can only be defined inside a module.
+    # This allows to `use AsyncWith` inside an interactive IEx session.
+    timeout = if __CALLER__.module, do: quote(do: @async_with_timeout unquote(@default_timeout))
+
     quote do
       import unquote(__MODULE__), only: [async: 1, async: 2]
 
-      @async_with_timeout 5_000
+      unquote(timeout)
     end
   end
 
@@ -144,14 +150,14 @@ defmodule AsyncWith do
 
   defmacro async({:with, _meta, clauses}, do: do_block, else: else_block) do
     print_warning_message_if_clauses_always_match(clauses, Macro.Env.stacktrace(__CALLER__))
-    do_async(clauses, do: do_block, else: change_else_block_to_raise_clause_error(else_block))
+    do_async(__CALLER__.module, clauses, do: do_block, else: else_block)
   end
 
   defmacro async({:with, _meta, clauses}, do: do_block) do
-    do_async(clauses, do: do_block, else: quote(do: (error -> error)))
+    do_async(__CALLER__.module, clauses, do: do_block, else: quote(do: (error -> error)))
   end
 
-  defmacro async({:with, _meta, _clauses}, _) do
+  defmacro async({:with, _meta, _args}, _) do
     message = ~s(missing :do option in "async with")
     raise(CompileError, file: __CALLER__.file, line: __CALLER__.line, description: message)
   end
@@ -160,17 +166,22 @@ defmodule AsyncWith do
 
   # TODO: warning: the result of the expression is ignored (suppress the warning by
   # assigning the expression to the _ variable)
-  defp do_async(ast, do: do_block, else: else_block) do
+  defp do_async(module, ast, do: do_block, else: else_block) do
     clauses = Clauses.from_ast(ast)
+    error_block = change_else_block_to_raise_clause_error(else_block)
     success_block = get_success_block(clauses, do_block)
     clauses = Enum.map(clauses, &Map.to_list/1)
 
+    # Module attributes can only be defined inside a module.
+    # This allows to `use AsyncWith` inside an interactive IEx session.
+    timeout = if module, do: quote(do: @async_with_timeout), else: @default_timeout
+
     quote do
-      case AsyncWith.Runner.run(unquote(clauses), @async_with_timeout) do
+      case AsyncWith.Runner.run(unquote(clauses), unquote(timeout)) do
         {:ok, {:ok, values}} -> unquote(success_block)
         {:ok, {:match_error, %MatchError{term: term}}} -> raise(MatchError, term: term)
-        {:ok, {:error, error}} -> case error, do: unquote(else_block)
-        error -> case error, do: unquote(else_block)
+        {:ok, {:error, error}} -> case error, do: unquote(error_block)
+        error -> case error, do: unquote(error_block)
       end
     end
   end
