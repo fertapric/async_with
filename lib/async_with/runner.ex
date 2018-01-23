@@ -4,10 +4,11 @@ defmodule AsyncWith.Runner do
   alias AsyncWith.Clauses
 
   def run(clauses, timeout) do
-    task = Task.Supervisor.async_nolink(AsyncWith.TaskSupervisor, fn ->
-      clauses = Enum.map(clauses, &Enum.into(&1, %{}))
-      AsyncWith.Runner.async_with(clauses)
-    end)
+    task =
+      Task.Supervisor.async_nolink(AsyncWith.TaskSupervisor, fn ->
+        clauses = Enum.map(clauses, &Enum.into(&1, %{}))
+        AsyncWith.Runner.async_with(clauses)
+      end)
 
     timeout_exit = {:exit, {:timeout, {AsyncWith, :async, [timeout]}}}
 
