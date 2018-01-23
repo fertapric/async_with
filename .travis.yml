@@ -27,6 +27,7 @@ install:
   - mix deps.get
 script:
   - mix test --cover
+  - mix help format 2>&1 >/dev/null && mix format --dry-run --check-formatted || echo "mix format not supported"
   - mix credo
 notifications:
   email:
