@@ -8,6 +8,7 @@
   * Raise `CompilerError` instead of `ArgumentError` when the `async` macro is not used with `with`.
   * Raise `CompilerError` errors when no clauses nor blocks are provided.
   * Export formatter configuration via `.formatter.exs`.
+  * Support single line usage (i.e. `async with a <- 1, do: a`).
 
 ## v0.2.2
 

@@ -162,6 +162,23 @@ defmodule AsyncWith do
     do_async(__CALLER__.module, clauses, do: do_block, else: quote(do: (error -> error)))
   end
 
+  defmacro async({:with, _meta, args}, _) when is_list(args) do
+    case List.last(args) do
+      [do: do_block, else: else_block] ->
+        clauses = List.delete_at(args, -1)
+        print_warning_message_if_clauses_always_match(clauses, Macro.Env.stacktrace(__CALLER__))
+        do_async(__CALLER__.module, clauses, do: do_block, else: else_block)
+
+      [do: do_block] ->
+        clauses = List.delete_at(args, -1)
+        do_async(__CALLER__.module, clauses, do: do_block, else: quote(do: (error -> error)))
+
+      _ ->
+        message = ~s(missing :do option in "async with")
+        raise(CompileError, file: __CALLER__.file, line: __CALLER__.line, description: message)
+    end
+  end
+
   defmacro async({:with, _meta, _args}, _) do
     message = ~s(missing :do option in "async with")
     raise(CompileError, file: __CALLER__.file, line: __CALLER__.line, description: message)
