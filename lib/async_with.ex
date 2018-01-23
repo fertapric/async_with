@@ -162,7 +162,10 @@ defmodule AsyncWith do
     raise(CompileError, file: __CALLER__.file, line: __CALLER__.line, description: message)
   end
 
-  defmacro async(_, _), do: raise(ArgumentError, ~s("async" macro must be used with "with"))
+  defmacro async(_, _) do
+    message = ~s("async" macro must be used with "with")
+    raise(CompileError, file: __CALLER__.file, line: __CALLER__.line, description: message)
+  end
 
   # TODO: warning: the result of the expression is ignored (suppress the warning by
   # assigning the expression to the _ variable)
