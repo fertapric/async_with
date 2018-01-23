@@ -8,8 +8,8 @@ defmodule AsyncWithTest do
 
   doctest AsyncWith
 
-  test "raises an ArgumentError error if 'async' is not followed by 'with'" do
-    assert_raise(ArgumentError, ~s("async" macro must be used with "with"), fn ->
+  test "raises a CompileError error if 'async' is not followed by 'with'" do
+    assert_raise(CompileError, ~r/"async" macro must be used with "with"/, fn ->
       ast =
         quote do
           async a <- 1 do
@@ -21,8 +21,8 @@ defmodule AsyncWithTest do
     end)
   end
 
-  test "raises an ArgumentError error if 'async' is not followed by 'with' (without clauses)" do
-    assert_raise(ArgumentError, ~s("async" macro must be used with "with"), fn ->
+  test "raises a CompileError error if 'async' is not followed by 'with' (without clauses)" do
+    assert_raise(CompileError, ~r/"async" macro must be used with "with"/, fn ->
       ast =
         quote do
           async do
@@ -34,8 +34,8 @@ defmodule AsyncWithTest do
     end)
   end
 
-  test "raises an ArgumentError error if 'async' is not followed by 'with' (without :do block)" do
-    assert_raise(ArgumentError, ~s("async" macro must be used with "with"), fn ->
+  test "raises a CompileError error if 'async' is not followed by 'with' (without :do block)" do
+    assert_raise(CompileError, ~r/"async" macro must be used with "with"/, fn ->
       ast =
         quote do
           async a <- 1

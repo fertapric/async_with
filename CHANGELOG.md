@@ -5,6 +5,8 @@
 ### Enhancements
 
   * [async with] Support `use AsyncWith` outside of a module. This allows interactive IEx sessions.
+  * [async with] Raise `CompilerError` instead of `ArgumentError` when the `async` macro is not used with `with`.
+  * [async with] Raise `CompilerError` errors when no clauses nor blocks are provided.
 
 ## v0.2.2
 
