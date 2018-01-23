@@ -1,4 +1,10 @@
 language: elixir
+
+cache:
+  directories:
+    - _build
+    - deps
+
 matrix:
   include:
     - otp_release: 18.3
@@ -21,15 +27,18 @@ matrix:
       elixir: 1.6
     - otp_release: 20.1
       elixir: 1.6
+
 install:
   - mix local.hex --force
   - mix local.rebar --force
   - mix deps.get
+
 script:
   - mix test --cover
   - mix help format 2>&1 >/dev/null && mix format --dry-run --check-formatted || echo "mix format not supported"
   - mix dialyzer --halt-exit-status
   - mix credo
+
 notifications:
   email:
     - fertapric@gmail.com
