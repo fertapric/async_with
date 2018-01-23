@@ -54,7 +54,12 @@ defmodule AsyncWith do
   defmacro __using__(_) do
     # Module attributes can only be defined inside a module.
     # This allows to `use AsyncWith` inside an interactive IEx session.
-    timeout = if __CALLER__.module, do: quote(do: @async_with_timeout unquote(@default_timeout))
+    timeout =
+      if __CALLER__.module do
+        quote do
+          @async_with_timeout unquote(@default_timeout)
+        end
+      end
 
     quote do
       import unquote(__MODULE__), only: [async: 1, async: 2]
