@@ -28,6 +28,7 @@ install:
 script:
   - mix test --cover
   - mix help format 2>&1 >/dev/null && mix format --dry-run --check-formatted || echo "mix format not supported"
+  - mix dialyzer --halt-exit-status
   - mix credo
 notifications:
   email:
