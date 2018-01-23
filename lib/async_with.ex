@@ -144,6 +144,14 @@ defmodule AsyncWith do
   """
   defmacro async(with_expression, blocks \\ [])
 
+  # `async with` with no arguments.
+  #
+  # Example:
+  #
+  #     async with do
+  #       1
+  #     end
+  #
   defmacro async({:with, _meta, args}, do: do_block, else: _else_block) when not is_list(args) do
     print_warning_message_if_clauses_always_match([], Macro.Env.stacktrace(__CALLER__))
     quote(do: with(do: unquote(do_block)))
@@ -153,6 +161,17 @@ defmodule AsyncWith do
     quote(do: with(do: unquote(do_block)))
   end
 
+  # `async with` with :do and :else blocks.
+  #
+  # Example:
+  #
+  #     async with a <- function(),
+  #                b <- function(a) do
+  #       {a, b}
+  #     else
+  #       error -> error
+  #     end
+  #
   defmacro async({:with, _meta, clauses}, do: do_block, else: else_block) do
     print_warning_message_if_clauses_always_match(clauses, Macro.Env.stacktrace(__CALLER__))
     do_async(__CALLER__.module, clauses, do: do_block, else: else_block)
@@ -162,6 +181,14 @@ defmodule AsyncWith do
     do_async(__CALLER__.module, clauses, do: do_block, else: quote(do: (error -> error)))
   end
 
+  # `async with` with :do and :else options (single line).
+  #
+  # Example:
+  #
+  #     async with a <- function(),
+  #                b <- function(a),
+  #                do: {a, b}
+  #
   defmacro async({:with, _meta, args}, _) when is_list(args) do
     case List.last(args) do
       [do: do_block, else: else_block] ->
