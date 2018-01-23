@@ -1,5 +1,11 @@
 # Changelog
 
+## Current
+
+### Enhancements
+
+  * [async with] Support `use AsyncWith` outside of a module. This allows interactive IEx sessions.
+
 ## v0.2.2
 
 ### Enhancements

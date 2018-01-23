@@ -22,11 +22,13 @@ $ mix deps.get
 
 ## Usage
 
-_TL;DR: just write `async` in front of `with`._
+_TL;DR: `use AsyncWith` and just write `async` in front of `with`._
 
 Let's start with an example:
 
 ```elixir
+iex> use AsyncWith
+iex>
 iex> opts = %{width: 10, height: 15}
 iex> async with {:ok, width} <- Map.fetch(opts, :width),
 ...>            {:ok, height} <- Map.fetch(opts, :height) do
@@ -38,6 +40,8 @@ iex> async with {:ok, width} <- Map.fetch(opts, :width),
 As in `with/1`, if all clauses match, the `do` block is executed, returning its result. Otherwise the chain is aborted and the non-matched value is returned:
 
 ```elixir
+iex> use AsyncWith
+iex>
 iex> opts = %{width: 10}
 iex> async with {:ok, width} <- Map.fetch(opts, :width),
 ...>            {:ok, height} <- Map.fetch(opts, :height) do
@@ -51,6 +55,8 @@ However, using `async with`, the right side of `<-` is always executed inside a 
 In addition, guards can be used in patterns as well:
 
 ```elixir
+iex> use AsyncWith
+iex>
 iex> users = %{"melany" => "guest", "bob" => :admin}
 iex> async with {:ok, role} when not is_binary(role) <- Map.fetch(users, "bob") do
 ...>   :ok
@@ -61,6 +67,8 @@ iex> async with {:ok, role} when not is_binary(role) <- Map.fetch(users, "bob") 
 As in `with/1`, variables bound inside `async with` won't leak; "bare expressions" may also be inserted between the clauses:
 
 ```elixir
+iex> use AsyncWith
+iex>
 iex> width = nil
 iex> opts = %{width: 10, height: 15}
 iex> async with {:ok, width} <- Map.fetch(opts, :width),
@@ -76,6 +84,8 @@ nil
 An `else` option can be given to modify what is being returned from `async with` in the case of a failed match:
 
 ```elixir
+iex> use AsyncWith
+iex>
 iex> opts = %{width: 10}
 iex> async with {:ok, width} <- Map.fetch(opts, :width),
 ...>            {:ok, height} <- Map.fetch(opts, :height) do
@@ -92,6 +102,8 @@ If there is no matching `else` condition, then a `AsyncWith.ClauseError` excepti
 Order-dependent clauses that do not express their dependency via their used or defined variables could lead to race conditions, as they are executed in separated tasks:
 
 ```elixir
+use AsyncWith
+
 async with Agent.update(agent, fn _ -> 1 end),
            Agent.update(agent, fn _ -> 2 end) do
   Agent.get(agent, fn state -> state end) # 1 or 2

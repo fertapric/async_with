@@ -77,16 +77,12 @@ defmodule AsyncWithTest do
     message =
       capture_io(:stderr, fn ->
         string = """
-          defmodule AsyncWith.Test.A do
-            use AsyncWith
+          use AsyncWith
 
-            def main do
-              async with a <- 1, b = 2 do
-                a + b
-              else
-                :error -> :error
-              end
-            end
+          async with a <- 1, b = 2 do
+            a + b
+          else
+            :error -> :error
           end
         """
 
@@ -108,16 +104,12 @@ defmodule AsyncWithTest do
     message =
       capture_io(:stderr, fn ->
         string = """
-          defmodule AsyncWith.Test.B do
-            use AsyncWith
+          use AsyncWith
 
-            def main do
-              async with do
-                2
-              else
-                :error -> :error
-              end
-            end
+          async with do
+            2
+          else
+            :error -> :error
           end
         """
 
@@ -133,14 +125,10 @@ defmodule AsyncWithTest do
     message =
       capture_io(:stderr, fn ->
         string = """
-          defmodule AsyncWith.Test.C do
-            use AsyncWith
+          use AsyncWith
 
-            def main do
-              async with a <- 1, b = 2 do
-                a + b
-              end
-            end
+          async with a <- 1, b = 2 do
+            a + b
           end
         """
 
