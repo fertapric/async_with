@@ -45,6 +45,17 @@ defmodule AsyncWithTest do
     end)
   end
 
+  test "raises a CompileError error if 'async' is not followed by 'with' (single line)" do
+    assert_raise(CompileError, ~r/"async" macro must be used with "with"/, fn ->
+      ast =
+        quote do
+          async a <- 1, do: a
+        end
+
+      Code.eval_quoted(ast)
+    end)
+  end
+
   test "raises a CompileError error if :do option is missing" do
     assert_raise(CompileError, ~r/missing :do option in "async with"/, fn ->
       ast =
@@ -94,6 +105,29 @@ defmodule AsyncWithTest do
     refute message =~ unexpected_message
   end
 
+  test "emits a warning if 'else' clauses will never match (single line)" do
+    expexted_message =
+      ~s("else" clauses will never match because all patterns in "async with" will always match)
+
+    unexpected_message =
+      ~s("else" clauses will never match because all patterns in "with" will always match)
+
+    message =
+      capture_io(:stderr, fn ->
+        string = """
+          use AsyncWith
+
+          async with a <- 1, b = 2, do: a + b, else: (:error -> :error)
+        """
+
+        Code.eval_string(string)
+      end)
+
+    assert warnings_count(message) == 1
+    assert message =~ expexted_message
+    refute message =~ unexpected_message
+  end
+
   test "emits a warning if 'else' clauses will never match (without clauses)" do
     expexted_message =
       ~s("else" clauses will never match because all patterns in "async with" will always match)
@@ -121,6 +155,29 @@ defmodule AsyncWithTest do
     refute message =~ unexpected_message
   end
 
+  test "emits a warning if 'else' clauses will never match (without clauses, single line)" do
+    expexted_message =
+      ~s("else" clauses will never match because all patterns in "async with" will always match)
+
+    unexpected_message =
+      ~s("else" clauses will never match because all patterns in "with" will always match)
+
+    message =
+      capture_io(:stderr, fn ->
+        string = """
+          use AsyncWith
+
+          async with, do: 2, else: (:error -> :error)
+        """
+
+        Code.eval_string(string)
+      end)
+
+    assert warnings_count(message) == 1
+    assert message =~ expexted_message
+    refute message =~ unexpected_message
+  end
+
   test "does not emit a warning if 'else' clauses are missing and clauses will always match" do
     message =
       capture_io(:stderr, fn ->
@@ -130,6 +187,8 @@ defmodule AsyncWithTest do
           async with a <- 1, b = 2 do
             a + b
           end
+
+          async with a <- 1, b = 2, do: a + b
         """
 
         Code.eval_string(string)
@@ -147,11 +206,23 @@ defmodule AsyncWithTest do
     assert result == 1
   end
 
+  test "works without clauses (single line)" do
+    result = async with, do: 1
+
+    assert result == 1
+  end
+
   test "works with one clause" do
     result =
       async with {:ok, a} <- echo("a") do
         a
       end
+
+    assert result == "a"
+  end
+
+  test "works with one clause (single line)" do
+    result = async with {:ok, a} <- echo("a"), do: a
 
     assert result == "a"
   end
@@ -167,6 +238,20 @@ defmodule AsyncWithTest do
                  {:ok, g} <- echo("g") do
         Enum.join([a, b, c, d, e, f, g], " ")
       end
+
+    assert result == "a b c d e f g"
+  end
+
+  test "works with several clauses (single line)" do
+    result =
+      async with {:ok, a} <- echo("a"),
+                 {:ok, b} <- echo("b"),
+                 {:ok, c} <- echo("c"),
+                 {:ok, d} <- echo("d"),
+                 {:ok, e} <- echo("e"),
+                 {:ok, f} <- echo("f"),
+                 {:ok, g} <- echo("g"),
+                 do: Enum.join([a, b, c, d, e, f, g], " ")
 
     assert result == "a b c d e f g"
   end
@@ -354,6 +439,25 @@ defmodule AsyncWithTest do
         {:error, error} -> error
         :error -> :test
       end
+
+    assert result == :test
+  end
+
+  test "executes else conditions when present (single line)" do
+    result =
+      async with {:ok, a} <- echo("a"),
+                 {:ok, b} <- echo("b"),
+                 {:ok, c} <- echo("c"),
+                 {:ok, d} <- echo("d(#{a})"),
+                 {:ok, e} <- error("e(#{b})"),
+                 {:ok, f} <- echo("f(#{b})"),
+                 {:ok, g} <- echo("g(#{e})"),
+                 do: Enum.join([a, b, c, d, e, f, g], " "),
+                 else:
+                   (
+                     {:error, error} -> error
+                     :error -> :test
+                   )
 
     assert result == :test
   end
