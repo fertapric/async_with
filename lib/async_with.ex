@@ -225,14 +225,13 @@ defmodule AsyncWith do
     clauses = Clauses.from_ast(ast)
     error_block = change_else_block_to_raise_clause_error(else_block)
     success_block = get_success_block(clauses, do_block)
-    clauses = Enum.map(clauses, &Map.to_list/1)
 
     # Module attributes can only be defined inside a module.
     # This allows to `use AsyncWith` inside an interactive IEx session.
     timeout = if module, do: quote(do: @async_with_timeout), else: @default_timeout
 
     quote do
-      case AsyncWith.Runner.run(unquote(clauses), unquote(timeout)) do
+      case AsyncWith.Runner.run(unquote(Enum.map(clauses, &Map.to_list/1)), unquote(timeout)) do
         {:ok, {:ok, values}} -> unquote(success_block)
         {:ok, {:match_error, %MatchError{term: term}}} -> raise(MatchError, term: term)
         {:ok, {:error, error}} -> case error, do: unquote(error_block)
