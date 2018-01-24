@@ -88,12 +88,16 @@ defmodule AsyncWithTest do
     message =
       capture_io(:stderr, fn ->
         string = """
-          use AsyncWith
+          defmodule AsyncWithTest.A do
+            use AsyncWith
 
-          async with a <- 1, b = 2 do
-            a + b
-          else
-            :error -> :error
+            def test do
+              async with a <- 1, b = 2 do
+                a + b
+              else
+                :error -> :error
+              end
+            end
           end
         """
 
@@ -115,9 +119,13 @@ defmodule AsyncWithTest do
     message =
       capture_io(:stderr, fn ->
         string = """
-          use AsyncWith
+          defmodule AsyncWithTest.B do
+            use AsyncWith
 
-          async with a <- 1, b = 2, do: a + b, else: (:error -> :error)
+            def test do
+              async with a <- 1, b = 2, do: a + b, else: (:error -> :error)
+            end
+          end
         """
 
         Code.eval_string(string)
@@ -138,12 +146,16 @@ defmodule AsyncWithTest do
     message =
       capture_io(:stderr, fn ->
         string = """
-          use AsyncWith
+          defmodule AsyncWithTest.C do
+            use AsyncWith
 
-          async with do
-            2
-          else
-            :error -> :error
+            def test do
+              async with do
+                2
+              else
+                :error -> :error
+              end
+            end
           end
         """
 
@@ -165,9 +177,13 @@ defmodule AsyncWithTest do
     message =
       capture_io(:stderr, fn ->
         string = """
-          use AsyncWith
+          defmodule AsyncWithTest.D do
+            use AsyncWith
 
-          async with, do: 2, else: (:error -> :error)
+            def test do
+              async with, do: 2, else: (:error -> :error)
+            end
+          end
         """
 
         Code.eval_string(string)
@@ -182,13 +198,65 @@ defmodule AsyncWithTest do
     message =
       capture_io(:stderr, fn ->
         string = """
-          use AsyncWith
+          defmodule AsyncWithTest.E do
+            use AsyncWith
 
-          async with a <- 1, b = 2 do
-            a + b
+            def test do
+              async with a <- 1, b = 2 do
+                a + b
+              end
+            end
+
+            def test_single_line do
+              async with a <- 1, b = 2, do: a + b
+            end
           end
+        """
 
-          async with a <- 1, b = 2, do: a + b
+        Code.eval_string(string)
+      end)
+
+    assert message == ""
+  end
+
+  test "does not emit a warning `warning: variable '<variable>' is unused` with rebinded vars" do
+    message =
+      capture_io(:stderr, fn ->
+        string = """
+          defmodule AsyncWithTest.F do
+            use AsyncWith
+
+            def test do
+              async with a <- 1,
+                         b <- 2,
+                         a <- 3 do
+                a + b
+              end
+            end
+          end
+        """
+
+        Code.eval_string(string)
+      end)
+
+    assert message == ""
+  end
+
+  test "does not emit a warning `warning: variable '<variable>' is unused` with temp vars" do
+    message =
+      capture_io(:stderr, fn ->
+        string = """
+          defmodule AsyncWithTest.G do
+            use AsyncWith
+
+            def test do
+              async with a <- 1,
+                         b <- 2,
+                         c <- a + b do
+                c
+              end
+            end
+          end
         """
 
         Code.eval_string(string)
