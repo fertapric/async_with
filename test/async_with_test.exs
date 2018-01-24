@@ -265,6 +265,35 @@ defmodule AsyncWithTest do
     assert message == ""
   end
 
+  test "emits a warning if the result of the expression is not being used" do
+    expexted_message =
+      "the result of the expression is ignored (suppress the warning by assigning the " <>
+        "expression to the _ variable)"
+
+    message =
+      capture_io(:stderr, fn ->
+        string = """
+          defmodule AsyncWithTest.H do
+            use AsyncWith
+
+            def test do
+              async with a <- 1,
+                         b <- 2 do
+                a + b
+              end
+
+              :test
+            end
+          end
+        """
+
+        Code.eval_string(string)
+      end)
+
+    assert warnings_count(message) == 1
+    assert message =~ expexted_message
+  end
+
   test "can be used outside of a module" do
     {value, _binding} =
       Code.eval_string("""
