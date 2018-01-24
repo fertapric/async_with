@@ -265,6 +265,20 @@ defmodule AsyncWithTest do
     assert message == ""
   end
 
+  test "can be used outside of a module" do
+    {value, _binding} =
+      Code.eval_string("""
+        use AsyncWith
+
+        async with a <- 1,
+                   b <- 2 do
+          a + b
+        end
+      """)
+
+    assert value == 3
+  end
+
   test "works without clauses" do
     result =
       async with do
