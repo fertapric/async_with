@@ -28,9 +28,9 @@ defmodule AsyncWith do
 
   ## Timeout attribute
 
-  The attribute `@async_with_timeout` can be used to configure the maximum time allowed to
-  execute all the clauses. It expects a timeout in milliseconds, with the default value of
-  `5000`.
+  The attribute `@async_with_timeout` can be used to configure the maximum time
+  allowed to execute all the clauses. It expects a timeout in milliseconds, with
+  the default value of `5000`.
 
       defmodule Acme do
         use AsyncWith
@@ -80,8 +80,8 @@ defmodule AsyncWith do
       ...> end
       {:ok, 150}
 
-  As in `with/1`, if all clauses match, the `do` block is executed, returning its result.
-  Otherwise the chain is aborted and the non-matched value is returned:
+  As in `with/1`, if all clauses match, the `do` block is executed, returning its
+  result. Otherwise the chain is aborted and the non-matched value is returned:
 
       iex> opts = %{width: 10}
       iex> async with {:ok, width} <- Map.fetch(opts, :width),
@@ -90,16 +90,17 @@ defmodule AsyncWith do
       ...> end
       :error
 
-  However, using `async with`, the right side of `<-` is always executed inside a new task. As
-  soon as any of the tasks finishes, the task that depends on the previous one will be resolved.
-  In other words, `async with` will solve the dependency graph and write the asynchronous code
-  in the most performant way as possible. It also ensures that, if a clause does not match, any
-  running task is shut down.
+  However, using `async with`, the right side of `<-` is always executed inside a
+  new task. As soon as any of the tasks finishes, the task that depends on the
+  previous one will be resolved. In other words, `async with` will solve the
+  dependency graph and write the asynchronous code in the most performant way as
+  possible. It also ensures that, if a clause does not match, any running task is
+  shut down.
 
   In addition, guards can be used in patterns as well:
 
-      iex> users = %{"melany" => "guest", "bob" => :admin}
-      iex> async with {:ok, role} when not is_binary(role) <- Map.fetch(users, "bob") do
+      iex> users = %{"melany" => "guest", "ed" => :admin}
+      iex> async with {:ok, role} when is_atom(role) <- Map.fetch(users, "ed") do
       ...>   :ok
       ...> end
       :ok
@@ -118,8 +119,8 @@ defmodule AsyncWith do
       iex> width
       nil
 
-  An `else` option can be given to modify what is being returned from `async with` in the
-  case of a failed match:
+  An `else` option can be given to modify what is being returned from
+  `async with` in the case of a failed match:
 
       iex> opts = %{width: 10}
       iex> async with {:ok, width} <- Map.fetch(opts, :width),
@@ -131,10 +132,12 @@ defmodule AsyncWith do
       ...> end
       {:error, :wrong_data}
 
-  If there is no matching `else` condition, then a `AsyncWith.ClauseError` exception is raised.
+  If there is no matching `else` condition, then a `AsyncWith.ClauseError`
+  exception is raised.
 
-  Order-dependent clauses that do not express their dependency via their used or defined
-  variables could lead to race conditions, as they are executed in separated tasks:
+  Order-dependent clauses that do not express their dependency via their used or
+  defined variables could lead to race conditions, as they are executed in
+  separated tasks:
 
       async with Agent.update(agent, fn _ -> 1 end),
                  Agent.update(agent, fn _ -> 2 end) do
@@ -270,8 +273,8 @@ defmodule AsyncWith do
 
   # Returns true if the `else_block` contains a match-all else clause.
   #
-  # This prevents messages like `warning: this clause cannot match because
-  # a previous clause at line <line number> always matches`.
+  # This prevents messages like `warning: this clause cannot match because a
+  # previous clause at line <line number> always matches`.
   defp contains_always_match_else_clauses?(else_block) do
     Enum.any?(else_block, fn {:->, _meta, [[left], _right]} -> AsyncWith.Macro.var?(left) end)
   end
@@ -293,12 +296,11 @@ defmodule AsyncWith do
     end
   end
 
-  # Filters variables that have been renamed because they are rebinded in other clauses.
+  # Filters variables that have been renamed because they are rebinded in other
+  # clauses.
   #
-  # Prevents `warning: variable "<variable>" is unused`, since renamed variables are not used
-  # in the `:do` block.
-  #
-  # See `AsyncWith.Clause` for more information.
+  # Prevents `warning: variable "<variable>" is unused`, since renamed variables
+  # are not used in the `:do` block.
   defp filter_renamed_vars(vars) do
     Enum.reject(vars, fn var ->
       case Atom.to_string(var) do
@@ -308,8 +310,8 @@ defmodule AsyncWith do
     end)
   end
 
-  # Prevents `warning: variable "<variable>" is unused` on internal variables, used in other
-  # clauses or guards.
+  # Prevents `warning: variable "<variable>" is unused` on internal variables,
+  # used in other clauses or guards.
   #
   # As example, the compiler would report a warning on
   #

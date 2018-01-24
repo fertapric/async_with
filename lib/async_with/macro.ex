@@ -6,7 +6,10 @@ defmodule AsyncWith.Macro do
 
   ## Examples
 
-      iex> ast = quote(do: {^ok, a, b, _, _c} when is_integer(a) and is_list(b) <- echo(d, e))
+      iex> ast =
+      ...>   quote do
+      ...>     {^ok, a, b, _, _c} when is_integer(a) and is_list(b) <- echo(d, e)
+      ...>   end
       iex> AsyncWith.Macro.get_vars(ast)
       [:ok, :a, :b, :_c, :d, :e]
 
@@ -29,7 +32,10 @@ defmodule AsyncWith.Macro do
 
   ## Examples
 
-      iex> ast = quote(do: {^ok, a, b, _} when is_integer(a) and is_list(b) <- echo(c, d))
+      iex> ast =
+      ...>   quote do
+      ...>     {^ok, a, b, _} when is_integer(a) and is_list(b) <- echo(c, d)
+      ...>   end
       iex> AsyncWith.Macro.get_pinned_vars(ast)
       [:ok]
 
@@ -51,7 +57,10 @@ defmodule AsyncWith.Macro do
 
   ## Examples
 
-      iex> ast = quote(do: {^ok, a, b, _} when is_integer(a) and is_list(b) <- echo(c, d))
+      iex> ast =
+      ...>   quote do
+      ...>     {^ok, a, b, _} when is_integer(a) and is_list(b) <- echo(c, d)
+      ...>   end
       iex> AsyncWith.Macro.get_guard_vars(ast)
       [:a, :b]
 
@@ -154,7 +163,8 @@ defmodule AsyncWith.Macro do
 
       iex> ast = quote(do: [^a, {1, %{b: c}, [2, d], [e: ^f]}])
       iex> var_renamings = %{a: :foo, c: :bar, f: :qux}
-      iex> AsyncWith.Macro.rename_pinned_vars(ast, var_renamings) |> Macro.to_string()
+      iex> AsyncWith.Macro.rename_pinned_vars(ast, var_renamings)
+      ...> |> Macro.to_string()
       "[^foo, {1, %{b: c}, [2, d], [e: ^qux]}]"
 
   """
