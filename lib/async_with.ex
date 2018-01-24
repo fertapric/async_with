@@ -219,8 +219,6 @@ defmodule AsyncWith do
     raise(CompileError, file: __CALLER__.file, line: __CALLER__.line, description: message)
   end
 
-  # TODO: warning: the result of the expression is ignored (suppress the warning by
-  # assigning the expression to the _ variable)
   defp do_async(module, ast, do: do_block, else: else_block) do
     clauses = Clauses.from_ast(ast)
     error_block = change_else_block_to_raise_clause_error(else_block)
