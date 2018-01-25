@@ -331,7 +331,7 @@ defmodule AsyncWith do
     guard_vars = Clauses.get_vars(clauses, :guard_vars)
 
     Enum.reject(vars, fn var ->
-      var not in do_block_vars and (var in used_vars or var in guard_vars)
+      !(var in do_block_vars) and (var in used_vars or var in guard_vars)
     end)
   end
 end
