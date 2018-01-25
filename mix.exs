@@ -32,8 +32,8 @@ defmodule AsyncWith.Mixfile do
 
   defp deps do
     [
-      {:credo, "~> 0.8.10", only: :dev},
-      {:dialyxir, "~> 0.5.1", only: :dev},
+      {:credo, "~> 0.8.10", only: :dev, runtime: false},
+      {:dialyxir, "~> 0.5.1", only: :dev, runtime: false},
       {:ex_doc, "~> 0.18.1", only: :docs}
     ]
   end
