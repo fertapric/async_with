@@ -213,6 +213,22 @@ defmodule AsyncWith.Macro do
     Enum.map(vars, &Macro.var(&1, context))
   end
 
+  @doc """
+  Generates an AST node representing a map of variables given by the atoms
+  `vars` and `context`.
+
+  ## Examples
+
+      iex> vars = [:a, :b, :c]
+      iex> AsyncWith.Macro.var_map(vars) |> Macro.to_string()
+      "%{a: a, b: b, c: c}"
+
+  """
+  @spec var_map([atom], atom) :: Macro.t()
+  def var_map(vars, context \\ nil) when is_list(vars) and is_atom(context) do
+    {:%{}, [], Enum.map(vars, fn var -> {var, Macro.var(var, context)} end)}
+  end
+
   defp tuple_map(tuple, fun) do
     tuple
     |> Tuple.to_list()
