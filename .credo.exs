@@ -19,7 +19,7 @@
         {Credo.Check.Consistency.TabsOrSpaces},
 
         {Credo.Check.Design.AliasUsage, false},
-        {Credo.Check.Design.DuplicatedCode, excluded_macros: []},
+        {Credo.Check.Design.DuplicatedCode, false},
         {Credo.Check.Design.TagTODO, exit_status: 2},
         {Credo.Check.Design.TagFIXME},
 
