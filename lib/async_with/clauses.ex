@@ -1,6 +1,8 @@
 defmodule AsyncWith.Clauses do
   @moduledoc false
 
+  alias AsyncWith.Macro, as: M
+
   @type clause :: %{
           function: Macro.t(),
           defined_vars: [atom],
@@ -209,47 +211,20 @@ defmodule AsyncWith.Clauses do
   end
 
   defp turn_operator_left_right_properties_into_functions(clause) do
-    assignments =
-      Enum.map(clause.used_vars, fn var ->
-        quote do
-          unquote(Macro.var(var, nil)) = Keyword.fetch!(results, unquote(var))
-        end
-      end)
-
-    results =
-      Enum.map(clause.defined_vars, fn var ->
-        quote do
-          {unquote(var), unquote(Macro.var(var, nil))}
-        end
-      end)
-
     function =
-      case clause do
-        %{operator: :<-} ->
-          quote do
-            fn results ->
-              unquote(assignments)
-
-              with unquote(clause.left) <- unquote(clause.right) do
-                unquote({:ok, results})
-              else
-                error -> {:error, error}
-              end
+      quote do
+        fn results ->
+          try do
+            with unquote(M.var_map(clause.used_vars, nil)) <- results,
+                 unquote({clause.operator, [], [clause.left, clause.right]}) do
+              {:ok, unquote(M.var_map(clause.defined_vars, nil))}
+            else
+              error -> {:error, error}
             end
+          rescue
+            error in MatchError -> {:match_error, error}
           end
-
-        %{operator: :=} ->
-          quote do
-            fn results ->
-              try do
-                unquote(assignments)
-                unquote(clause.left) = unquote(clause.right)
-                unquote({:ok, results})
-              rescue
-                error in MatchError -> {:match_error, error}
-              end
-            end
-          end
+        end
       end
 
     %{

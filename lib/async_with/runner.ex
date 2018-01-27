@@ -64,8 +64,8 @@ defmodule AsyncWith.Runner do
   #   11. Return [a: 1, b: 3, c: {1, 3}]
   #
   @doc false
-  @spec async_with([Clauses.clause()], keyword) :: {:ok, keyword} | any
-  def async_with(clauses, results \\ [])
+  @spec async_with([Clauses.clause()], map) :: {:ok, map} | any
+  def async_with(clauses, results \\ %{})
   def async_with([], results), do: {:ok, results}
 
   def async_with(clauses, results) do
@@ -74,7 +74,7 @@ defmodule AsyncWith.Runner do
     receive do
       {ref, {:ok, reply}} ->
         Process.demonitor(ref, [:flush])
-        async_with(remove_clause(clauses, ref), Keyword.merge(results, reply))
+        async_with(remove_clause(clauses, ref), Map.merge(results, reply))
 
       {_ref, reply} ->
         shutdown_tasks(clauses)
@@ -104,7 +104,7 @@ defmodule AsyncWith.Runner do
 
   # Spawns all the tasks whose dependencies have been processed.
   defp spawn_tasks(clauses, results) do
-    processed_vars = Keyword.keys(results)
+    processed_vars = Map.keys(results)
 
     Enum.map(clauses, fn clause ->
       if spawn_task?(clause, processed_vars) do

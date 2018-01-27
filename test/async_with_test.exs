@@ -735,7 +735,7 @@ defmodule AsyncWithTest do
 
     result =
       async with {:ok, a} <- echo("a"),
-                 {:ok, b} <- echo("b(#{a})"),
+                 {:ok, b} <- delay(10, echo("b(#{a})")),
                  {:ok, c} <- echo("c(#{a})"),
                  {:ok, d} <- error("d(#{b})"),
                  {:ok, e} <- delay(1_000, {register_pid(agent, :e), "e(#{c})"}),
