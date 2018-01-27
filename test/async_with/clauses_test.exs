@@ -23,12 +23,15 @@ defmodule AsyncWith.ClausesTest do
         function:
           quote do
             fn results ->
-              []
-
-              with {^ok, unquote(async_with_a1)} <- echo(b, c) do
-                {:ok, [async_with_a@1: unquote(async_with_a1)]}
-              else
-                error -> {:error, error}
+              try do
+                with %{} <- results,
+                     {^ok, unquote(async_with_a1)} <- echo(b, c) do
+                  {:ok, %{async_with_a@1: unquote(async_with_a1)}}
+                else
+                  error -> {:error, error}
+                end
+              rescue
+                error in MatchError -> {:match_error, error}
               end
             end
           end,
@@ -40,12 +43,15 @@ defmodule AsyncWith.ClausesTest do
         function:
           quote do
             fn results ->
-              []
-
-              with {:ok, unquote(async_with_b1)} <- echo(m) do
-                {:ok, [async_with_b@1: unquote(async_with_b1)]}
-              else
-                error -> {:error, error}
+              try do
+                with %{} <- results,
+                     {:ok, unquote(async_with_b1)} <- echo(m) do
+                  {:ok, %{async_with_b@1: unquote(async_with_b1)}}
+                else
+                  error -> {:error, error}
+                end
+              rescue
+                error in MatchError -> {:match_error, error}
               end
             end
           end,
@@ -57,12 +63,15 @@ defmodule AsyncWith.ClausesTest do
         function:
           quote do
             fn results ->
-              [unquote(async_with_a1) = Keyword.fetch!(results, :async_with_a@1)]
-
-              with {:ok, a} <- echo(unquote(async_with_a1)) do
-                {:ok, [a: a]}
-              else
-                error -> {:error, error}
+              try do
+                with %{async_with_a@1: unquote(async_with_a1)} <- results,
+                     {:ok, a} <- echo(unquote(async_with_a1)) do
+                  {:ok, %{a: a}}
+                else
+                  error -> {:error, error}
+                end
+              rescue
+                error in MatchError -> {:match_error, error}
               end
             end
           end,
@@ -74,12 +83,15 @@ defmodule AsyncWith.ClausesTest do
         function:
           quote do
             fn results ->
-              [unquote(async_with_b1) = Keyword.fetch!(results, :async_with_b@1)]
-
-              with {:ok, b, m} <- echo(unquote(async_with_b1)) do
-                {:ok, [b: b, m: m]}
-              else
-                error -> {:error, error}
+              try do
+                with %{async_with_b@1: unquote(async_with_b1)} <- results,
+                     {:ok, b, m} <- echo(unquote(async_with_b1)) do
+                  {:ok, %{b: b, m: m}}
+                else
+                  error -> {:error, error}
+                end
+              rescue
+                error in MatchError -> {:match_error, error}
               end
             end
           end,
@@ -110,13 +122,16 @@ defmodule AsyncWith.ClausesTest do
         function:
           quote do
             fn results ->
-              []
-
-              with {^ok, unquote(async_with_a1)} when is_atom(unquote(async_with_a1)) <-
-                     echo(b, c) do
-                {:ok, [async_with_a@1: unquote(async_with_a1)]}
-              else
-                error -> {:error, error}
+              try do
+                with %{} <- results,
+                     {^ok, unquote(async_with_a1)} when is_atom(unquote(async_with_a1)) <-
+                       echo(b, c) do
+                  {:ok, %{async_with_a@1: unquote(async_with_a1)}}
+                else
+                  error -> {:error, error}
+                end
+              rescue
+                error in MatchError -> {:match_error, error}
               end
             end
           end,
@@ -128,12 +143,15 @@ defmodule AsyncWith.ClausesTest do
         function:
           quote do
             fn results ->
-              []
-
-              with {:ok, unquote(async_with_b1)} <- echo(m) do
-                {:ok, [async_with_b@1: unquote(async_with_b1)]}
-              else
-                error -> {:error, error}
+              try do
+                with %{} <- results,
+                     {:ok, unquote(async_with_b1)} <- echo(m) do
+                  {:ok, %{async_with_b@1: unquote(async_with_b1)}}
+                else
+                  error -> {:error, error}
+                end
+              rescue
+                error in MatchError -> {:match_error, error}
               end
             end
           end,
@@ -145,12 +163,15 @@ defmodule AsyncWith.ClausesTest do
         function:
           quote do
             fn results ->
-              [unquote(async_with_a1) = Keyword.fetch!(results, :async_with_a@1)]
-
-              with {:ok, a} <- echo(unquote(async_with_a1)) do
-                {:ok, [a: a]}
-              else
-                error -> {:error, error}
+              try do
+                with %{async_with_a@1: unquote(async_with_a1)} <- results,
+                     {:ok, a} <- echo(unquote(async_with_a1)) do
+                  {:ok, %{a: a}}
+                else
+                  error -> {:error, error}
+                end
+              rescue
+                error in MatchError -> {:match_error, error}
               end
             end
           end,
@@ -162,12 +183,15 @@ defmodule AsyncWith.ClausesTest do
         function:
           quote do
             fn results ->
-              [unquote(async_with_b1) = Keyword.fetch!(results, :async_with_b@1)]
-
-              with {:ok, b, m} <- echo(unquote(async_with_b1)) do
-                {:ok, [b: b, m: m]}
-              else
-                error -> {:error, error}
+              try do
+                with %{async_with_b@1: unquote(async_with_b1)} <- results,
+                     {:ok, b, m} <- echo(unquote(async_with_b1)) do
+                  {:ok, %{b: b, m: m}}
+                else
+                  error -> {:error, error}
+                end
+              rescue
+                error in MatchError -> {:match_error, error}
               end
             end
           end,
@@ -192,12 +216,15 @@ defmodule AsyncWith.ClausesTest do
         function:
           quote do
             fn results ->
-              []
-
-              with {unquote(async_with__ok), _} <- echo(b, c) do
-                {:ok, [async_with__ok@1: unquote(async_with__ok)]}
-              else
-                error -> {:error, error}
+              try do
+                with %{} <- results,
+                     {unquote(async_with__ok), _} <- echo(b, c) do
+                  {:ok, %{async_with__ok@1: unquote(async_with__ok)}}
+                else
+                  error -> {:error, error}
+                end
+              rescue
+                error in MatchError -> {:match_error, error}
               end
             end
           end,
@@ -225,12 +252,15 @@ defmodule AsyncWith.ClausesTest do
         function:
           quote do
             fn results ->
-              []
-
-              with {:ok, unquote(async_with_a1)} <- echo(m) do
-                {:ok, [async_with_a@1: unquote(async_with_a1)]}
-              else
-                error -> {:error, error}
+              try do
+                with %{} <- results,
+                     {:ok, unquote(async_with_a1)} <- echo(m) do
+                  {:ok, %{async_with_a@1: unquote(async_with_a1)}}
+                else
+                  error -> {:error, error}
+                end
+              rescue
+                error in MatchError -> {:match_error, error}
               end
             end
           end,
@@ -243,9 +273,12 @@ defmodule AsyncWith.ClausesTest do
           quote do
             fn results ->
               try do
-                [unquote(async_with_a1) = Keyword.fetch!(results, :async_with_a@1)]
-                {:ok, a} = echo(unquote(async_with_a1))
-                {:ok, [a: a]}
+                with %{async_with_a@1: unquote(async_with_a1)} <- results,
+                     {:ok, a} = echo(unquote(async_with_a1)) do
+                  {:ok, %{a: a}}
+                else
+                  error -> {:error, error}
+                end
               rescue
                 error in MatchError -> {:match_error, error}
               end
@@ -272,9 +305,11 @@ defmodule AsyncWith.ClausesTest do
           quote do
             fn results ->
               try do
-                []
-                _ = {:ok, a}
-                {:ok, []}
+                with %{} <- results, _ = {:ok, a} do
+                  {:ok, %{}}
+                else
+                  error -> {:error, error}
+                end
               rescue
                 error in MatchError -> {:match_error, error}
               end

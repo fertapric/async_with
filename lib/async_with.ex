@@ -277,19 +277,14 @@ defmodule AsyncWith do
   end
 
   defp get_success_block(clauses, do_block) do
-    assignments =
+    vars =
       clauses
       |> Clauses.get_vars(:defined_vars)
       |> filter_renamed_vars()
       |> filter_internal_vars(clauses, do_block)
-      |> Enum.map(fn var ->
-        quote do
-          unquote(Macro.var(var, nil)) = Keyword.fetch!(values, unquote(var))
-        end
-      end)
 
     quote do
-      with unquote_splicing(assignments), do: unquote(do_block)
+      with unquote(AsyncWith.Macro.var_map(vars, nil)) <- values, do: unquote(do_block)
     end
   end
 
