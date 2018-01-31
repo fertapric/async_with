@@ -415,7 +415,7 @@ defmodule AsyncWithTest do
                  {^ok, d} <- echo("d"),
                  {:ok, ^e} <- echo("e(#{a})"),
                  {:ok, f} <- echo("f(#{e}, #{d})"),
-                 {^ok, g} <- echo("g(#{e})"),
+                 {ok, g} <- echo("g(#{e})"),
                  {:ok, h} <- echo("h(#{f})"),
                  i = "i",
                  {^ok, j} <- echo("j(#{h}, #{i})") do
