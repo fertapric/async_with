@@ -21,7 +21,8 @@ defmodule AsyncWith.Macro do
     |> Enum.uniq()
   end
 
-  defp do_get_vars({:_, _meta, _args}), do: []
+  defp do_get_vars({:_, _meta, _context}), do: []
+  defp do_get_vars({:binary, _meta, _context}), do: []
   defp do_get_vars({var, _meta, context}) when is_atom(var) and is_atom(context), do: [var]
   defp do_get_vars(ast) when is_list(ast), do: Enum.flat_map(ast, &do_get_vars/1)
   defp do_get_vars(ast) when is_tuple(ast), do: do_get_vars(Tuple.to_list(ast))
@@ -92,12 +93,11 @@ defmodule AsyncWith.Macro do
 
   """
   @spec var?(Macro.t()) :: boolean
-  def var?(ast) do
-    case ast do
-      {var, _meta, context} when is_atom(var) and is_atom(context) -> true
-      _ -> false
-    end
-  end
+  def var?(ast)
+  def var?({:_, _meta, _context}), do: false
+  def var?({:binary, _meta, _context}), do: false
+  def var?({var, _meta, context}) when is_atom(var) and is_atom(context), do: true
+  def var?(_ast), do: false
 
   @doc ~S"""
   Returns an AST node where each variable is replaced by the result of invoking
@@ -113,7 +113,8 @@ defmodule AsyncWith.Macro do
   """
   @spec map_vars(Macro.t(), function) :: Macro.t()
   def map_vars(ast, function)
-  def map_vars({:_, _meta, _args} = ast, _fun), do: ast
+  def map_vars({:_, _meta, _context} = ast, _fun), do: ast
+  def map_vars({:binary, _meta, _context} = ast, _fun), do: ast
   def map_vars({var, _, context} = ast, fun) when is_atom(var) and is_atom(context), do: fun.(ast)
   def map_vars(ast, fun) when is_list(ast), do: Enum.map(ast, &map_vars(&1, fun))
   def map_vars(ast, fun) when is_tuple(ast), do: tuple_map(ast, &map_vars(&1, fun))
