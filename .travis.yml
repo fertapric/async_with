@@ -35,7 +35,7 @@ install:
 
 script:
   - mix test --cover
-  - if ! ([[ "$TRAVIS_ELIXIR_VERSION" == "1.4"* ]] || [[ "$TRAVIS_ELIXIR_VERSION" == "1.5"* ]]); then mix format --dry-run --check-formatted; fi
+  - if ! ([[ "$TRAVIS_ELIXIR_VERSION" == "1.4"* ]] || [[ "$TRAVIS_ELIXIR_VERSION" == "1.5"* ]]); then mix format --check-formatted; fi
   - # skip dialyzer for elixir 1.4 and erlang 18 as it produces weird errors
   - if ! ([[ "$TRAVIS_ELIXIR_VERSION" == "1.4"* ]] && [[ "$TRAVIS_OTP_RELEASE" == "18"* ]]); then mix dialyzer --halt-exit-status; fi
   - mix credo --strict
