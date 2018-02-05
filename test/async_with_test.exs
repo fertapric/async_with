@@ -644,6 +644,17 @@ defmodule AsyncWithTest do
     end)
   end
 
+  test "re-throws uncaught values" do
+    result =
+      try do
+        async with _ <- throw(:test), do: :error
+      catch
+        :test -> :ok
+      end
+
+    assert result == :ok
+  end
+
   @tag :capture_log
   test "returns `{:exit, reason}` when an exception is raised" do
     result =
@@ -772,6 +783,35 @@ defmodule AsyncWithTest do
     pids = Agent.get(agent, & &1)
 
     assert {:exit, {%RuntimeError{message: "oops"}, _}} = result
+    refute Process.alive?(pids.d)
+    refute Process.alive?(pids.e)
+    refute Map.has_key?(pids, :g)
+
+    :ok = Agent.stop(agent)
+  end
+
+  @tag :capture_log
+  test "kills all the spawned processes when a value is thrown" do
+    {:ok, agent} = Agent.start_link(fn -> %{} end)
+
+    result =
+      try do
+        async with {:ok, a} <- echo("a"),
+                   {:ok, b} <- echo("b(#{a})"),
+                   {:ok, c} <- echo("c(#{a})"),
+                   {:ok, d} <- delay(1_000, {register_pid(agent, :d), "d(#{b})"}),
+                   {:ok, e} <- delay(1_000, {register_pid(agent, :e), "e(#{c})"}),
+                   {:ok, f} <- throw("f(#{c})"),
+                   {:ok, g} <- delay(1_000, {register_pid(agent, :g), "g(#{e})"}) do
+          Enum.join([a, b, c, d, e, f, g], " ")
+        end
+      catch
+        thrown_value -> thrown_value
+      end
+
+    pids = Agent.get(agent, & &1)
+
+    assert result == "f(c(a))"
     refute Process.alive?(pids.d)
     refute Process.alive?(pids.e)
     refute Map.has_key?(pids, :g)

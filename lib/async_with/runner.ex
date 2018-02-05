@@ -28,6 +28,8 @@ defmodule AsyncWith.Runner do
               end
             rescue
               error in MatchError -> {:match_error, error}
+            catch
+              thrown_value -> {:nocatch, thrown_value}
             end
           end
         end
@@ -44,6 +46,7 @@ defmodule AsyncWith.Runner do
     case Task.yield(task, timeout) || Task.shutdown(task) || timeout_exit do
       {:ok, {:ok, value}} -> {:ok, value}
       {:ok, {:match_error, error}} -> {:match_error, error}
+      {:ok, {:nocatch, thrown_value}} -> {:nocatch, thrown_value}
       {:ok, {:error, error}} -> {:error, error}
       error -> {:error, error}
     end

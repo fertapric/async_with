@@ -232,11 +232,14 @@ defmodule AsyncWith do
         {:ok, values} ->
           with unquote_splicing(change_clauses_to_match_values(clauses)), do: unquote(do_block)
 
-        {:error, error} ->
-          case error, do: unquote(maybe_change_else_block_to_raise_clause_error(else_block))
-
         {:match_error, %MatchError{term: term}} ->
           raise(MatchError, term: term)
+
+        {:nocatch, thrown_value} ->
+          throw(thrown_value)
+
+        {:error, error} ->
+          case error, do: unquote(maybe_change_else_block_to_raise_clause_error(else_block))
       end
     end
   end
