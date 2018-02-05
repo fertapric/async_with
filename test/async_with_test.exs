@@ -655,35 +655,12 @@ defmodule AsyncWithTest do
     assert result == :ok
   end
 
-  @tag :capture_log
-  test "returns `{:exit, reason}` when an exception is raised" do
+  test "re-raises unrescued errors" do
     result =
-      async with {:ok, a} <- echo("a"),
-                 {:ok, b} <- echo("b"),
-                 {:ok, c} <- echo("c"),
-                 {:ok, d} <- echo("d(#{a})"),
-                 {:ok, e} <- raise_oops("e(#{b})"),
-                 {:ok, f} <- echo("f(#{b})"),
-                 {:ok, g} <- echo("g(#{e})") do
-        Enum.join([a, b, c, d, e, f, g], " ")
-      end
-
-    assert {:exit, {%RuntimeError{message: "oops"}, _}} = result
-  end
-
-  @tag :capture_log
-  test "executes else conditions when an exception is raised" do
-    result =
-      async with {:ok, a} <- echo("a"),
-                 {:ok, b} <- echo("b"),
-                 {:ok, c} <- echo("c"),
-                 {:ok, d} <- echo("d(#{a})"),
-                 {:ok, e} <- raise_oops("e(#{b})"),
-                 {:ok, f} <- echo("f(#{b})"),
-                 {:ok, g} <- echo("g(#{e})") do
-        Enum.join([a, b, c, d, e, f, g], " ")
-      else
-        {:exit, {exception, _}} -> exception
+      try do
+        async with _ <- raise("oops"), do: :error
+      rescue
+        error -> error
       end
 
     assert result == %RuntimeError{message: "oops"}
@@ -770,19 +747,23 @@ defmodule AsyncWithTest do
     {:ok, agent} = Agent.start_link(fn -> %{} end)
 
     result =
-      async with {:ok, a} <- echo("a"),
-                 {:ok, b} <- echo("b(#{a})"),
-                 {:ok, c} <- echo("c(#{a})"),
-                 {:ok, d} <- delay(1_000, {register_pid(agent, :d), "d(#{b})"}),
-                 {:ok, e} <- delay(1_000, {register_pid(agent, :e), "e(#{c})"}),
-                 {:ok, f} <- raise_oops("f(#{c})"),
-                 {:ok, g} <- delay(1_000, {register_pid(agent, :g), "g(#{e})"}) do
-        Enum.join([a, b, c, d, e, f, g], " ")
+      try do
+        async with {:ok, a} <- echo("a"),
+                   {:ok, b} <- echo("b(#{a})"),
+                   {:ok, c} <- echo("c(#{a})"),
+                   {:ok, d} <- delay(1_000, {register_pid(agent, :d), "d(#{b})"}),
+                   {:ok, e} <- delay(1_000, {register_pid(agent, :e), "e(#{c})"}),
+                   {:ok, f} <- raise_oops("f(#{c})"),
+                   {:ok, g} <- delay(1_000, {register_pid(agent, :g), "g(#{e})"}) do
+          Enum.join([a, b, c, d, e, f, g], " ")
+        end
+      rescue
+        error -> error
       end
 
     pids = Agent.get(agent, & &1)
 
-    assert {:exit, {%RuntimeError{message: "oops"}, _}} = result
+    assert result == %RuntimeError{message: "oops"}
     refute Process.alive?(pids.d)
     refute Process.alive?(pids.e)
     refute Map.has_key?(pids, :g)
