@@ -47,8 +47,6 @@ defmodule AsyncWith do
 
   """
 
-  import AsyncWith.Macro, only: [var_list: 1]
-
   alias AsyncWith.Clauses
 
   @default_timeout 5_000
@@ -285,7 +283,10 @@ defmodule AsyncWith do
         #       {:ok, double_width}
         #     end
         #
-        right = quote(do: Enum.at(values, unquote(index), unquote(var_list(used_vars))))
+        right =
+          quote do
+            Enum.at(values, unquote(index), unquote(AsyncWith.Macro.var_list(used_vars)))
+          end
 
         {{operator, meta, [left, right]}, index + 1}
       end)
