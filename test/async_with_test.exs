@@ -666,6 +666,12 @@ defmodule AsyncWithTest do
     assert result == %RuntimeError{message: "oops"}
   end
 
+  test "returns `{:exit, :normal}` on normal exit" do
+    result = async with _ <- exit(:normal), do: :ok
+
+    assert result == {:exit, :normal}
+  end
+
   test "returns `{:exit, {:timeout, {AsyncWith, :async, [@async_with_timeout]}}}` on timeout" do
     result =
       async with {:ok, a} <- echo("a"),
@@ -817,6 +823,31 @@ defmodule AsyncWithTest do
     pids = Agent.get(agent, & &1)
 
     assert result == {:exit, {:timeout, {AsyncWith, :async, [50]}}}
+    refute Process.alive?(pids.d)
+    refute Process.alive?(pids.e)
+    refute Map.has_key?(pids, :g)
+
+    :ok = Agent.stop(agent)
+  end
+
+  @tag :capture_log
+  test "kills all the spawned processes on exit" do
+    {:ok, agent} = Agent.start_link(fn -> %{} end)
+
+    result =
+      async with {:ok, a} <- echo("a"),
+                 {:ok, b} <- echo("b_#{a}_"),
+                 {:ok, c} <- echo("c_#{a}_"),
+                 {:ok, d} <- delay(1_000, {register_pid(agent, :d), "d_#{b}_"}),
+                 {:ok, e} <- delay(1_000, {register_pid(agent, :e), "e_#{c}_"}),
+                 {:ok, f} <- exit(:"f_#{c}_"),
+                 {:ok, g} <- delay(1_000, {register_pid(agent, :g), "g_#{e}_"}) do
+        Enum.join([a, b, c, d, e, f, g], " ")
+      end
+
+    pids = Agent.get(agent, & &1)
+
+    assert result == {:exit, :f_c_a__}
     refute Process.alive?(pids.d)
     refute Process.alive?(pids.e)
     refute Map.has_key?(pids, :g)
