@@ -235,6 +235,9 @@ defmodule AsyncWith do
         {:match_error, %MatchError{term: term}} ->
           raise(MatchError, term: term)
 
+        {:norescue, error} ->
+          raise(error)
+
         {:nocatch, thrown_value} ->
           throw(thrown_value)
 
