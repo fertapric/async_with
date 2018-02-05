@@ -749,7 +749,7 @@ defmodule AsyncWithTest do
   end
 
   @tag :capture_log
-  test "kills all the spawned processes when an exception is raised" do
+  test "kills all the spawned processes when an error is raised" do
     {:ok, agent} = Agent.start_link(fn -> %{} end)
 
     result =
@@ -920,7 +920,7 @@ defmodule AsyncWithTest do
     assert result == {:ok, [a: 1]}
   end
 
-  test "internal variables do not rebind external variables" do
+  test "internal variable 'values' cannot be accessed outside the macro's context" do
     values = ["X", "Y", "Z"]
 
     result = async with _ <- 1, do: values
@@ -929,7 +929,7 @@ defmodule AsyncWithTest do
     assert values == ["X", "Y", "Z"]
   end
 
-  test "does not rebind internal variables in the 'async with' expressions" do
+  test "internal variable 'values' cannot be rebinded" do
     result =
       async with a <- "a",
                  b <- "b",
