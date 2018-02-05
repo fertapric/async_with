@@ -47,6 +47,8 @@ defmodule AsyncWith do
 
   """
 
+  import AsyncWith.Macro, only: [var_list: 1]
+
   alias AsyncWith.Clauses
 
   @default_timeout 5_000
@@ -156,7 +158,7 @@ defmodule AsyncWith do
   #     end
   #
   defmacro async({:with, _meta, args}, do: do_block, else: _else_block) when not is_list(args) do
-    print_warning_message_if_clauses_always_match([], Macro.Env.stacktrace(__CALLER__))
+    warn_else_clauses_will_never_match(__CALLER__)
     quote(do: with(do: unquote(do_block)))
   end
 
@@ -176,7 +178,7 @@ defmodule AsyncWith do
   #     end
   #
   defmacro async({:with, _meta, clauses}, do: do_block, else: else_block) do
-    print_warning_message_if_clauses_always_match(clauses, Macro.Env.stacktrace(__CALLER__))
+    if Clauses.always_match?(clauses), do: warn_else_clauses_will_never_match(__CALLER__)
     do_async(__CALLER__.module, clauses, do: do_block, else: else_block)
   end
 
@@ -196,7 +198,7 @@ defmodule AsyncWith do
     case List.last(args) do
       [do: do_block, else: else_block] ->
         clauses = List.delete_at(args, -1)
-        print_warning_message_if_clauses_always_match(clauses, Macro.Env.stacktrace(__CALLER__))
+        if Clauses.always_match?(clauses), do: warn_else_clauses_will_never_match(__CALLER__)
         do_async(__CALLER__.module, clauses, do: do_block, else: else_block)
 
       [do: do_block] ->
@@ -219,114 +221,69 @@ defmodule AsyncWith do
     raise(CompileError, file: __CALLER__.file, line: __CALLER__.line, description: message)
   end
 
-  defp do_async(module, ast, do: do_block, else: else_block) do
-    clauses = Clauses.from_ast(ast)
-    error_block = change_else_block_to_raise_clause_error(else_block)
-    success_block = get_success_block(clauses, do_block)
-
+  # TODO: Explain all the magic here
+  defp do_async(module, clauses, do: do_block, else: else_block) do
     # Module attributes can only be defined inside a module.
     # This allows to `use AsyncWith` inside an interactive IEx session.
     timeout = if module, do: quote(do: @async_with_timeout), else: @default_timeout
 
     quote do
-      case AsyncWith.Runner.run(unquote(Enum.map(clauses, &Map.to_list/1)), unquote(timeout)) do
-        {:ok, {:ok, values}} -> unquote(success_block)
-        {:ok, {:match_error, %MatchError{term: term}}} -> raise(MatchError, term: term)
-        {:ok, {:error, error}} -> case error, do: unquote(error_block)
-        error -> case error, do: unquote(error_block)
+      case AsyncWith.Runner.run(unquote(AsyncWith.Runner.format(clauses)), unquote(timeout)) do
+        {:ok, values} ->
+          with unquote_splicing(change_clauses_to_match_values(clauses)), do: unquote(do_block)
+
+        {:error, error} ->
+          case error, do: unquote(maybe_change_else_block_to_raise_clause_error(else_block))
+
+        {:match_error, %MatchError{term: term}} ->
+          raise(MatchError, term: term)
       end
     end
   end
 
-  # Prints a warning message if all patterns in `async with` will always match.
+  # Prints a warning message saying that "else" clauses will never match
+  # because all patterns in "async with" will always match.
   #
   # This mimics `with/1` behavior.
-  defp print_warning_message_if_clauses_always_match(clauses, stacktrace) do
-    if clauses_always_match?(clauses) do
-      message =
-        ~s("else" clauses will never match because all patterns in "async with" will always match)
+  defp warn_else_clauses_will_never_match(caller) do
+    message =
+      ~s("else" clauses will never match because all patterns in "async with" will always match)
 
-      IO.warn(message, stacktrace)
-    end
+    IO.warn(message, Macro.Env.stacktrace(caller))
   end
 
-  # Returns true if all patterns in `clauses` will always match.
-  defp clauses_always_match?(clauses) do
-    Enum.all?(clauses, fn
-      {:<-, _meta, [left, _right]} -> AsyncWith.Macro.var?(left)
-      _ -> true
-    end)
-  end
-
-  # Changes the `else_block` to raise `AsyncWith.ClauseError` if none of its
-  # clauses match.
-  defp change_else_block_to_raise_clause_error(else_block) do
-    if contains_always_match_else_clauses?(else_block) do
+  # Changes the `else_block` to raise `AsyncWith.ClauseError` if none of the
+  # "else" clauses match.
+  defp maybe_change_else_block_to_raise_clause_error(else_block) do
+    if Clauses.contains_match_all_clause?(else_block) do
       else_block
     else
       else_block ++ quote(do: (term -> raise(AsyncWith.ClauseError, term: term)))
     end
   end
 
-  # Returns true if the `else_block` contains a match-all else clause.
-  #
-  # This prevents messages like `warning: this clause cannot match because a
-  # previous clause at line <line number> always matches`.
-  defp contains_always_match_else_clauses?(else_block) do
-    Enum.any?(else_block, fn {:->, _meta, [[left], _right]} -> AsyncWith.Macro.var?(left) end)
-  end
-
-  defp get_success_block(clauses, do_block) do
-    vars =
+  # TODO: Explain
+  defp change_clauses_to_match_values(clauses) do
+    {clauses, _index} =
       clauses
-      |> Clauses.get_vars(:defined_vars)
-      |> filter_renamed_vars()
-      |> filter_internal_vars(clauses, do_block)
+      |> Clauses.format_bare_expressions()
+      |> Clauses.get_defined_and_used_local_vars()
+      |> Enum.map_reduce(0, fn {{operator, meta, [left, _right]}, {_vars, used_vars}}, index ->
+        # Used variables are passed as the third argument to prevent warning messages
+        # with temporary variables: `warning: variable "<variable>" is unused`.
+        #
+        # The variable `width` is an example of a temporary variable:
+        #
+        #     async with {:ok, width} <- {:ok, 10},
+        #                double_width = width * 2 do
+        #       {:ok, double_width}
+        #     end
+        #
+        right = quote(do: Enum.at(values, unquote(index), unquote(var_list(used_vars))))
 
-    quote do
-      with unquote(AsyncWith.Macro.var_map(vars, nil)) <- values, do: unquote(do_block)
-    end
-  end
+        {{operator, meta, [left, right]}, index + 1}
+      end)
 
-  # Filters variables that have been renamed because they are rebinded in other
-  # clauses.
-  #
-  # Prevents `warning: variable "<variable>" is unused`, since renamed variables
-  # are not used in the `:do` block.
-  defp filter_renamed_vars(vars) do
-    Enum.reject(vars, fn var ->
-      case Atom.to_string(var) do
-        "async_with_" <> _ -> true
-        _ -> false
-      end
-    end)
-  end
-
-  # Prevents `warning: variable "<variable>" is unused` on internal variables,
-  # used in other clauses or guards.
-  #
-  # As example, the compiler would report a warning on
-  #
-  #     async with {:ok, width} <- {:ok, 10},
-  #                double_width = width * 2 do
-  #       {:ok, double_width}
-  #     end
-  #
-  # because the resulting AST
-  #
-  #     with width = Keyword.fetch!(state, :width),
-  #          double_width = Keyword.fetch!(state, :double_width) do
-  #       {:ok, double_width}
-  #     end
-  #
-  # would not use the `width` variable to compute `double_width`.
-  defp filter_internal_vars(vars, clauses, do_block) do
-    do_block_vars = MapSet.new(AsyncWith.Macro.get_vars(do_block))
-    used_vars = Clauses.get_vars(clauses, :used_vars)
-    guard_vars = Clauses.get_vars(clauses, :guard_vars)
-
-    Enum.reject(vars, fn var ->
-      !(var in do_block_vars) and (var in used_vars or var in guard_vars)
-    end)
+    clauses
   end
 end

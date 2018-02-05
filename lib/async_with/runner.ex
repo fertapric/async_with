@@ -1,18 +1,52 @@
 defmodule AsyncWith.Runner do
   @moduledoc false
 
+  import AsyncWith.Macro, only: [rename_ignored_vars: 1, var_map: 1]
+
   alias AsyncWith.Clauses
 
+  @doc """
+  """
+  @spec format(Macro.t()) :: Macro.t()
+  def format(clauses) do
+    clauses
+    |> Clauses.format_bare_expressions()
+    |> rename_ignored_vars()
+    |> Clauses.rename_local_vars()
+    |> Clauses.get_defined_and_used_local_vars()
+    |> Enum.map(fn {{operator, meta, [left, right]}, {defined_vars, used_vars}} ->
+      function_ast =
+        quote do
+          fn vars ->
+            try do
+              with unquote(var_map(used_vars)) <- vars,
+                   value <- unquote(right),
+                   unquote({operator, meta, [left, Macro.var(:value, __MODULE__)]}) do
+                {:ok, unquote(Macro.var(:value, __MODULE__)), unquote(var_map(defined_vars))}
+              else
+                error -> {:error, error}
+              end
+            rescue
+              error in MatchError -> {:match_error, error}
+            end
+          end
+        end
+
+      {:%{}, [], [used_vars: used_vars, function: function_ast]}
+    end)
+  end
+
   def run(clauses, timeout) do
-    task =
-      Task.Supervisor.async_nolink(AsyncWith.TaskSupervisor, fn ->
-        clauses = Enum.map(clauses, &Enum.into(&1, %{}))
-        AsyncWith.Runner.async_with(clauses)
-      end)
+    task = Task.Supervisor.async_nolink(AsyncWith.TaskSupervisor, fn -> async_with(clauses) end)
 
     timeout_exit = {:exit, {:timeout, {AsyncWith, :async, [timeout]}}}
 
-    Task.yield(task, timeout) || Task.shutdown(task) || timeout_exit
+    case Task.yield(task, timeout) || Task.shutdown(task) || timeout_exit do
+      {:ok, {:ok, value}} -> {:ok, value}
+      {:ok, {:match_error, error}} -> {:match_error, error}
+      {:ok, {:error, error}} -> {:error, error}
+      error -> {:error, error}
+    end
   end
 
   # Returns the values of all the variables binded in `clauses`.
@@ -64,35 +98,36 @@ defmodule AsyncWith.Runner do
   #   11. Return [a: 1, b: 3, c: {1, 3}]
   #
   @doc false
-  @spec async_with([Clauses.clause()], map) :: {:ok, map} | any
-  def async_with(clauses, results \\ %{})
-  def async_with([], results), do: {:ok, results}
+  @spec async_with([map], map) :: {:ok, map} | any
+  def async_with(clauses, processed_vars \\ %{}) do
+    case Enum.all?(clauses, &Map.get(&1, :processed, false)) do
+      true ->
+        {:ok, Enum.map(clauses, & &1.value)}
 
-  def async_with(clauses, results) do
-    clauses = spawn_tasks(clauses, results)
+      false ->
+        clauses = spawn_tasks(clauses, processed_vars)
 
-    receive do
-      {ref, {:ok, reply}} ->
-        Process.demonitor(ref, [:flush])
-        async_with(remove_clause(clauses, ref), Map.merge(results, reply))
+        receive do
+          {ref, {:ok, value, vars}} ->
+            Process.demonitor(ref, [:flush])
+            async_with(store_value(clauses, ref, value), Map.merge(processed_vars, vars))
 
-      {_ref, reply} ->
-        shutdown_tasks(clauses)
-        reply
+          {_ref, reply} ->
+            shutdown_tasks(clauses)
+            reply
 
-      {:DOWN, _ref, _, proc, reason} ->
-        exit(reason(reason, proc))
+          {:DOWN, _ref, _, proc, reason} ->
+            # TODO: test
+            exit(reason(reason, proc))
+        end
     end
   end
 
-  defp remove_clause(clauses, ref) do
-    clause =
-      Enum.find(clauses, fn
-        %{task: %Task{ref: ^ref}} -> true
-        _ -> false
-      end)
-
-    clauses -- [clause]
+  defp store_value(clauses, ref, value) do
+    Enum.map(clauses, fn
+      %{task: %Task{ref: ^ref}} = clause -> Map.merge(clause, %{processed: true, value: value})
+      clause -> clause
+    end)
   end
 
   defp shutdown_tasks(clauses) do
@@ -103,12 +138,10 @@ defmodule AsyncWith.Runner do
   end
 
   # Spawns all the tasks whose dependencies have been processed.
-  defp spawn_tasks(clauses, results) do
-    processed_vars = Map.keys(results)
-
+  defp spawn_tasks(clauses, processed_vars) do
     Enum.map(clauses, fn clause ->
       if spawn_task?(clause, processed_vars) do
-        task = Task.async(fn -> clause.function.(results) end)
+        task = Task.async(fn -> clause.function.(processed_vars) end)
         Map.merge(clause, %{task: task})
       else
         clause
@@ -120,12 +153,16 @@ defmodule AsyncWith.Runner do
 
   defp spawn_task?(%{used_vars: used_vars}, processed_vars) do
     # All the dependencies are processed
-    used_vars -- processed_vars == []
+    used_vars -- Map.keys(processed_vars) == []
   end
 
+  # TODO: test
   defp reason(:noconnection, proc), do: {:nodedown, monitor_node(proc)}
+  # TODO: test
   defp reason(reason, _), do: reason
 
+  # TODO: test
   defp monitor_node(pid) when is_pid(pid), do: node(pid)
+  # TODO: test
   defp monitor_node({_, node}), do: node
 end
