@@ -1,237 +1,340 @@
 defmodule AsyncWith.Clauses do
   @moduledoc false
 
-  alias AsyncWith.Macro, as: M
+  defmodule Clause do
+    @moduledoc false
 
-  @type clause :: %{
-          function: Macro.t(),
-          defined_vars: [atom],
-          used_vars: [atom],
-          guard_vars: [atom]
-        }
+    import AsyncWith.Macro,
+      only: [get_pinned_vars: 1, get_vars: 1, rename_pinned_vars: 2, rename_vars: 2, var?: 1]
+
+    @doc """
+    Returns true if the clause will always match.
+
+    ## Examples
+
+        iex> ast = quote(do: a <- 1)
+        iex> Clause.always_match?(ast)
+        true
+
+        iex> [ast] = quote(do: (a -> 1))
+        iex> Clause.always_match?(ast)
+        true
+
+        iex> ast = quote(do: _ <- 1)
+        iex> Clause.always_match?(ast)
+        true
+
+        iex> [ast] = quote(do: (_ -> 1))
+        iex> Clause.always_match?(ast)
+        true
+
+        iex> ast = quote(do: a = 1)
+        iex> Clause.always_match?(ast)
+        true
+
+        iex> ast = quote(do: a + b)
+        iex> Clause.always_match?(ast)
+        true
+
+        iex> ast = quote(do: {:ok, a} <- b + 1)
+        iex> Clause.always_match?(ast)
+        false
+
+        iex> [ast] = quote(do: ({:ok, b} -> b + 1))
+        iex> Clause.always_match?(ast)
+        false
+
+    """
+    @spec always_match?(Macro.t()) :: boolean
+    def always_match?({:<-, _meta, [{:_, _, _context}, _right]}), do: true
+    def always_match?({:<-, _meta, [left, _right]}), do: var?(left)
+    def always_match?({:->, _meta, [[{:_, _, _context}], _right]}), do: true
+    def always_match?({:->, _meta, [[left], _right]}), do: var?(left)
+    def always_match?(_), do: true
+
+    @doc """
+    Returns the list of used variables in the clause.
+
+    Used variables are the ones at the right-side of the clause or pinned
+    variables at the left-side of the clause.
+
+    ## Examples
+
+        iex> ast =
+        ...>   quote do
+        ...>     {^ok, a, b, _, _c} when is_integer(a) and b > 0 <- echo(d, e)
+        ...>   end
+        iex> Clause.get_used_vars(ast)
+        [:ok, :d, :e]
+
+    """
+    @spec get_used_vars(Macro.t()) :: Macro.t()
+    def get_used_vars({_operator, _meta, [left, right]}) do
+      Enum.uniq(get_pinned_vars(left) ++ get_vars(right))
+    end
+
+    @doc """
+    Returns the list of defined variables in the clause.
+
+    Defined variables are the ones binded at the left-side of the clause.
+
+    ## Examples
+
+        iex> ast =
+        ...>   quote do
+        ...>     {^ok, a, b, _, _c} when is_integer(a) and b > 0 <- echo(d, e)
+        ...>   end
+        iex> Clause.get_defined_vars(ast)
+        [:a, :b, :_c]
+
+    """
+    @spec get_defined_vars(Macro.t()) :: Macro.t()
+    def get_defined_vars({_operator, _meta, [left, _right]}) do
+      get_vars(left) -- get_pinned_vars(left)
+    end
+
+    @doc """
+    Renames the used variables in the clause.
+
+    Used variables are the ones at the right-side of the clause or pinned
+    variables at the left-side of the clause.
+
+    ## Examples
+
+        iex> ast = quote(do: {^ok, a} when is_integer(a) <- b + c)
+        iex> var_renamings = %{ok: :new_ok, b: :new_b, a: :new_a}
+        iex> Clause.rename_used_vars(ast, var_renamings) |> Macro.to_string()
+        "{^new_ok, a} when is_integer(a) <- new_b + c"
+
+    """
+    @spec rename_used_vars(Macro.t(), map) :: Macro.t()
+    def rename_used_vars({operator, meta, [left, right]}, var_renamings) do
+      renamed_left = rename_pinned_vars(left, var_renamings)
+      renamed_right = rename_vars(right, var_renamings)
+
+      {operator, meta, [renamed_left, renamed_right]}
+    end
+
+    @doc """
+    Renames the defined (or binded) variables in the clause.
+
+    Defined variables are the ones binded at the left-side of the clause.
+
+    ## Examples
+
+        iex> ast = quote(do: {^ok, a, b}  when is_integer(a)<- c + d)
+        iex> var_renamings = %{ok: :new_ok, a: :new_a, c: :new_c}
+        iex> Clause.rename_defined_vars(ast, var_renamings) |> Macro.to_string()
+        "{^ok, new_a, b} when is_integer(new_a) <- c + d"
+
+    """
+    @spec rename_defined_vars(Macro.t(), map) :: Macro.t()
+    def rename_defined_vars({operator, meta, [left, right]} = clause, var_renamings) do
+      defined_vars = get_defined_vars(clause)
+      renamed_left = rename_vars(left, Map.take(var_renamings, defined_vars))
+
+      {operator, meta, [renamed_left, right]}
+    end
+  end
 
   @doc """
-  Aggregates the list of variables of the same `type`.
+  Returns true if all patterns in `clauses` will always match.
+
+  ## Examples
+
+      iex> ast = quote(do: [a <- 1, b <- 2, _ <- c, {:ok, d} = echo(c)])
+      iex> Clauses.always_match?(ast)
+      true
+
+      iex> ast = quote(do: [a <- 1, {:ok, b} <- echo(a), {:ok, c} = echo(b)])
+      iex> Clauses.always_match?(ast)
+      false
+
   """
-  @spec get_vars([clause], :defined_vars | :used_vars | :guard_vars) :: [atom]
-  def get_vars(clauses, type) do
-    Enum.reduce(clauses, [], fn clause, vars ->
-      Enum.uniq(vars ++ Map.fetch!(clause, type))
+  @spec always_match?(Macro.t()) :: boolean
+  def always_match?(clauses) do
+    Enum.all?(clauses, &Clause.always_match?/1)
+  end
+
+  @doc """
+  Returns true if `clauses` contain a match-all clause.
+
+  This operation can be used to prevent messages like `warning: this clause
+  cannot match because a previous clause at line <line number> always matches`.
+
+  ## Examples
+
+      iex> ast =
+      ...>   quote do
+      ...>     :error -> :error
+      ...>     error -> error
+      ...>   end
+      iex> Clauses.contains_match_all_clause?(ast)
+      true
+
+      iex> ast =
+      ...>   quote do
+      ...>     :error -> :error
+      ...>     _ -> nil
+      ...>   end
+      iex> Clauses.contains_match_all_clause?(ast)
+      true
+
+      iex> ast =
+      ...>   quote do
+      ...>     :error -> :error
+      ...>     :ok -> :ok
+      ...>   end
+      iex> Clauses.contains_match_all_clause?(ast)
+      false
+
+  """
+  @spec contains_match_all_clause?(Macro.t()) :: boolean
+  def contains_match_all_clause?(clauses) do
+    Enum.any?(clauses, &Clause.always_match?/1)
+  end
+
+  @doc """
+  Formats the list of clauses, converting any "bare expression"
+  into an assignment (`_ = expression`).
+
+  This operation can be used to normalize clauses, so they are always composed
+  of three parts: `left <- right` or `left = right`.
+
+  ## Examples
+
+      iex> ast = quote(do: [a <- 1, b = 2, a + b])
+      iex> Clauses.format_bare_expressions(ast) |> Macro.to_string()
+      "[a <- 1, b = 2, _ = a + b]"
+
+  """
+  @spec format_bare_expressions(Macro.t()) :: Macro.t()
+  def format_bare_expressions(clauses) do
+    Enum.map(clauses, fn
+      {:<-, _meta, _args} = clause -> clause
+      {:=, _meta, _args} = clause -> clause
+      clause -> {:=, [], [Macro.var(:_, __MODULE__), clause]}
     end)
   end
 
   @doc """
-  Maps multiple and dependent Abstract Syntax Tree expressions into structs.
+  Returns the list of local variables that are used and defined per clause.
 
-  There are three types of clauses:
+  Used variables are the ones at the right-side of the clause or pinned
+  variables at the left-side of the clause.
 
-    * Clauses with arrow (or send operator) - `a <- 1` - However, clauses that always match
-      (the left side is a variable) are converted to clauses with match operator. This prevents
-      `warning: "else" clauses will never match because all patterns in "with" will always
-      match`.
-    * Clauses with match operator - `a = 1`
-    * Bare expressions - `my_function(a)` - However, bare expressions are converted to
-      clauses with match operator `_ = my_function(a)` to ensure both left and right sides
-      are always present.
+  Defined variables are the ones binded at the left-side of the clause.
 
-  Each clause is mapped into the following Elixir struct:
+  Local variables are the ones defined in previous clauses, any other variables
+  are considered external.
 
-    * `function` - A function that executes the clause and collects the values of its defined
-      variables.
-    * `defined_vars` - The list of variables binded/defined in the clause.
-    * `used_vars` - The list of variables used in the clause (including pin matching).
-    * `guard_vars` - The list of variables used in the guard clause.
+  It returns `{clause, {defined_vars, used_vars}}` per clause.
 
-  As example, the following clause `{:ok, {^a, b}} when is_binary(b) <- echo(c, d)` would
-  be mapped to an struct with the following attributes:
-
-    * `function` would be something similar to
-      `fn -> with {:ok, {^a, b}} when is_binary(b) <- echo(c, d), do: {:ok, [b: b]} end`.
-    * `defined_vars` would be `[:b]`.
-    * `used_vars` would be `[:a, :c, :d]`.
-    * `guard_vars` would be `[:b]`.
-
-  The main goal of this function is to process the clauses of the `async with` expression.
-
-  This function is order dependent:
-
-    * Variables that are used but not defined in previous clauses are considered external.
-      External variables are removed from the list of `used_vars`, as they shouldn't be
-      considered dependencies.
-    * Variables that are rebinded in next clauses are renamed to avoid collisions when collecting
-      the results.
-    * Ignored variables are renamed to avoid compiler warnings.
-
-  Variables are renamed using the following pattern:
-
-      async_with_<var name>@<version>
+  This operation is order dependent.
 
   ## Examples
 
-  As example, given the following `async with` expression:
-
-      async with {^ok, a} when is_integer(a) <- echo(b, c, a),
-                 {_ok, b} <- echo(m) ~> {d, a},
-                 {:ok, a} <- echo(a),
-                 {:ok, b, m} <- echo(b) do
-      end
-
-  the list of clauses returned by `from_ast/1` would be as if the `async with`
-  expression were:
-
-      async with {^ok, async_with_a@1} when is_integer(async_with_a@1) <- echo(b, c, a),
-                 {async_with__ok@1, async_with_b@1} <- echo(m) ~> {d, async_with_a@1},
-                 {:ok, a} <- echo(async_with_a@1),
-                 {:ok, b, m} <- echo(async_with_b@1) do
+      iex> ast =
+      ...>   quote do
+      ...>     [
+      ...>       {:ok, a} when is_integer(a) <- echo(b, c),
+      ...>       {^ok, c, d} <- a + e,
+      ...>       {^d, f, g} <- a + b + c
+      ...>     ]
+      ...>   end
+      iex> Clauses.get_defined_and_used_local_vars(ast)
+      quote do
+        [
+          {
+            {:ok, a} when is_integer(a) <- echo(b, c),
+            {[:a], []}
+          },
+          {
+            {^ok, c, d} <- a + e,
+            {[:c, :d], [:a]}
+          },
+          {
+            {^d, f, g} <- a + b + c,
+            {[:f, :g], [:d, :a, :c]}
+          }
+        ]
       end
 
   """
-  @spec from_ast(Macro.t()) :: [clause]
-  def from_ast(ast) do
-    ast
-    |> Enum.map(&one_from_ast/1)
-    |> remove_external_vars()
-    |> rename_rebinded_vars()
-    |> Enum.map(&turn_operator_left_right_properties_into_functions/1)
-  end
+  @spec get_defined_and_used_local_vars(Macro.t()) :: Macro.t()
+  def get_defined_and_used_local_vars(clauses) do
+    {clauses, _local_vars} =
+      Enum.map_reduce(clauses, [], fn clause, local_vars ->
+        defined_vars = Clause.get_defined_vars(clause)
+        used_vars = Clause.get_used_vars(clause)
+        external_vars = used_vars -- local_vars
+        used_local_vars = used_vars -- external_vars
+        local_vars = Enum.uniq(local_vars ++ defined_vars)
 
-  defp one_from_ast({:=, _meta, [left, right]}), do: do_one_from_ast(:=, left, right)
-
-  defp one_from_ast({:<-, _meta, [left, right]}) do
-    if AsyncWith.Macro.var?(left) do
-      do_one_from_ast(:=, left, right)
-    else
-      do_one_from_ast(:<-, left, right)
-    end
-  end
-
-  # Bare expressions are converted to clauses following the pattern `_ = <bare expression>`
-  defp one_from_ast(ast), do: do_one_from_ast(:=, Macro.var(:_, nil), ast)
-
-  defp do_one_from_ast(operator, left, right) do
-    pinned_vars = AsyncWith.Macro.get_pinned_vars(left)
-
-    %{
-      operator: operator,
-      left: left,
-      right: right,
-      used_vars: Enum.uniq(AsyncWith.Macro.get_vars(right) ++ pinned_vars),
-      defined_vars: AsyncWith.Macro.get_vars(left) -- pinned_vars,
-      guard_vars: AsyncWith.Macro.get_guard_vars(left)
-    }
-  end
-
-  defp remove_external_vars(clauses) do
-    {clauses, _defined_vars} =
-      Enum.map_reduce(clauses, [], fn clause, defined_vars ->
-        clause = %{clause | used_vars: common_vars(clause.used_vars, defined_vars)}
-        defined_vars = Enum.uniq(defined_vars ++ clause.defined_vars)
-
-        {clause, defined_vars}
+        {{clause, {defined_vars, used_local_vars}}, local_vars}
       end)
 
     clauses
   end
 
-  defp common_vars(var_list_1, var_list_2), do: var_list_1 -- var_list_1 -- var_list_2
+  @doc """
+  Renames all the variables that are defined locally.
 
-  defp rename_rebinded_vars(clauses) do
-    {clauses, var_renamings} =
-      Enum.map_reduce(clauses, %{}, fn clause, var_renamings ->
-        clause = rename_used_vars(clause, var_renamings)
-        var_renamings = update_var_renamings(var_renamings, clause.defined_vars)
+  Local variables are the ones defined in previous clauses, any other variables
+  are considered external.
 
-        {rename_defined_vars(clause, var_renamings), var_renamings}
+  Variables are renamed by appending `@` and the variable "version" to its name
+  (i.e. `var@1`).
+
+  This operation can be used to obtain unique variable names, which can be helpful
+  in cases of variable rebinding.
+
+  This operation is order dependent.
+
+  ## Examples
+
+      iex> ast =
+      ...>   quote do
+      ...>     [
+      ...>       {:ok, a} <- echo(b, c),
+      ...>       {^ok, b, a} when is_integer(a) <- foo(a, b),
+      ...>       {^b, c, d} <- bar(a, b, c),
+      ...>       {:ok, d, b, a} when is_integer(a) <- baz(a, b, c, d)
+      ...>     ]
+      ...>   end
+      iex> Clauses.rename_local_vars(ast) |> Enum.map(&Macro.to_string/1)
+      [
+        "{:ok, a@1} <- echo(b, c)",
+        "{^ok, b@1, a@2} when is_integer(a@2) <- foo(a@1, b)",
+        "{^b@1, c@1, d@1} <- bar(a@2, b@1, c)",
+        "{:ok, d@2, b@2, a@3} when is_integer(a@3) <- baz(a@2, b@1, c@1, d@1)"
+      ]
+
+  """
+  @spec rename_local_vars(Macro.t()) :: Macro.t()
+  def rename_local_vars(clauses) do
+    {clauses, _var_versions} =
+      Enum.map_reduce(clauses, %{}, fn clause, var_versions ->
+        clause = Clause.rename_used_vars(clause, var_versions_to_var_renamings(var_versions))
+
+        var_versions = increase_var_versions(var_versions, Clause.get_defined_vars(clause))
+        clause = Clause.rename_defined_vars(clause, var_versions_to_var_renamings(var_versions))
+
+        {clause, var_versions}
       end)
 
-    # Rename exposed variables back to their original names so they can be used in
-    # the `:do` block
-    var_renamings_of_exposed_vars =
-      var_renamings
-      |> remove_ignored_vars_from_var_renamings()
-      |> reverse_var_renamings()
+    clauses
+  end
 
-    Enum.map(clauses, fn clause ->
-      clause
-      |> rename_used_vars(var_renamings_of_exposed_vars)
-      |> rename_defined_vars(var_renamings_of_exposed_vars)
+  defp increase_var_versions(var_versions, vars) do
+    Enum.reduce(vars, var_versions, fn var, var_versions ->
+      Map.update(var_versions, var, 1, &(&1 + 1))
     end)
   end
 
-  defp rename_used_vars(clause, var_renamings) do
-    %{
-      operator: clause.operator,
-      left: AsyncWith.Macro.rename_pinned_vars(clause.left, var_renamings),
-      right: AsyncWith.Macro.rename_vars(clause.right, var_renamings),
-      defined_vars: clause.defined_vars,
-      used_vars: rename_vars(clause.used_vars, var_renamings),
-      guard_vars: clause.guard_vars
-    }
-  end
-
-  defp rename_defined_vars(clause, var_renamings) do
-    %{
-      operator: clause.operator,
-      left: AsyncWith.Macro.rename_vars(clause.left, var_renamings),
-      right: clause.right,
-      defined_vars: rename_vars(clause.defined_vars, var_renamings),
-      used_vars: clause.used_vars,
-      guard_vars: rename_vars(clause.guard_vars, var_renamings)
-    }
-  end
-
-  defp rename_vars(vars, var_renamings) do
-    Enum.map(vars, &Map.get(var_renamings, &1, &1))
-  end
-
-  defp reverse_var_renamings(var_renamings) do
-    for {k, v} <- var_renamings, do: {v, k}, into: %{}
-  end
-
-  defp remove_ignored_vars_from_var_renamings(var_renamings) do
-    for {k, v} <- var_renamings, !String.starts_with?("#{k}", "_"), do: {k, v}, into: %{}
-  end
-
-  defp update_var_renamings(var_renamings, vars) do
-    Enum.reduce(vars, var_renamings, fn var, var_renamings ->
-      var_renaming = Map.get(var_renamings, var, var)
-      Map.put(var_renamings, var, rename_var(var, get_version(var_renaming)))
-    end)
-  end
-
-  defp rename_var(var_name, version) do
-    :"async_with_#{var_name}@#{version}"
-  end
-
-  defp get_version(var) do
-    case String.split(Atom.to_string(var), "@") do
-      [_var_name] -> 1
-      [_var_name, version] -> String.to_integer(version) + 1
-    end
-  end
-
-  defp turn_operator_left_right_properties_into_functions(clause) do
-    function =
-      quote do
-        fn results ->
-          try do
-            with unquote(M.var_map(clause.used_vars, nil)) <- results,
-                 unquote({clause.operator, [], [clause.left, clause.right]}) do
-              {:ok, unquote(M.var_map(clause.defined_vars, nil))}
-            else
-              error -> {:error, error}
-            end
-          rescue
-            error in MatchError -> {:match_error, error}
-          end
-        end
-      end
-
-    %{
-      function: function,
-      defined_vars: clause.defined_vars,
-      used_vars: clause.used_vars,
-      guard_vars: clause.guard_vars
-    }
+  defp var_versions_to_var_renamings(var_versions) do
+    var_versions
+    |> Enum.map(fn {var, version} -> {var, :"#{var}@#{version}"} end)
+    |> Enum.into(%{})
   end
 end

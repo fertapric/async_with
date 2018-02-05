@@ -229,7 +229,7 @@ defmodule AsyncWithTest do
             def test do
               async with a <- 1,
                          b <- 2,
-                         a <- 3 do
+                         a <- a + 3 do
                 a + b
               end
             end
@@ -861,11 +861,33 @@ defmodule AsyncWithTest do
   test "errors with the same internal representation are not misinterpreted" do
     result =
       async with {:ok, a} <- echo("a"),
-                 {:ok, {b}} <- {:ok, [a: 1]} do
-        Enum.join([a, b], " ")
+                 {:ok, b, c} <- {:ok, [a: 1]} do
+        Enum.join([a, b, c], " ")
       end
 
     assert result == {:ok, [a: 1]}
+  end
+
+  test "internal variables do not rebind external variables" do
+    values = ["X", "Y", "Z"]
+
+    result = async with _ <- 1, do: values
+
+    assert result == ["X", "Y", "Z"]
+    assert values == ["X", "Y", "Z"]
+  end
+
+  test "does not rebind internal variables in the 'async with' expressions" do
+    result =
+      async with a <- "a",
+                 b <- "b",
+                 c <- "c",
+                 values <- [a, b, c],
+                 d <- hd(values) do
+        Enum.join([a, b, c, d], " ")
+      end
+
+    assert result == "a b c a"
   end
 
   defp warnings_count(string) do
