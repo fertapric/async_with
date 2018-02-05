@@ -113,13 +113,12 @@ defmodule AsyncWith.Runner do
             Process.demonitor(ref, [:flush])
             async_with(store_value(clauses, ref, value), Map.merge(processed_vars, vars))
 
-          {_ref, reply} ->
+          {_ref, error} ->
             shutdown_tasks(clauses)
-            reply
+            error
 
-          {:DOWN, _ref, _, proc, reason} ->
-            # TODO: test
-            exit(reason(reason, proc))
+          {:DOWN, _ref, _, _, reason} ->
+            exit(reason)
         end
     end
   end
@@ -156,14 +155,4 @@ defmodule AsyncWith.Runner do
     # All the dependencies are processed
     used_vars -- Map.keys(processed_vars) == []
   end
-
-  # TODO: test
-  defp reason(:noconnection, proc), do: {:nodedown, monitor_node(proc)}
-  # TODO: test
-  defp reason(reason, _), do: reason
-
-  # TODO: test
-  defp monitor_node(pid) when is_pid(pid), do: node(pid)
-  # TODO: test
-  defp monitor_node({_, node}), do: node
 end
