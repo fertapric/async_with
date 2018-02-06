@@ -1,8 +1,6 @@
 defmodule AsyncWith.Runner do
   @moduledoc false
 
-  import AsyncWith.Macro, only: [rename_ignored_vars: 1, var_map: 1]
-
   alias AsyncWith.Clauses
 
   @doc """
@@ -11,7 +9,7 @@ defmodule AsyncWith.Runner do
   def format(clauses) do
     clauses
     |> Clauses.format_bare_expressions()
-    |> rename_ignored_vars()
+    |> AsyncWith.Macro.rename_ignored_vars()
     |> Clauses.rename_local_vars()
     |> Clauses.get_defined_and_used_local_vars()
     |> Enum.map(fn {{operator, meta, [left, right]}, {defined_vars, used_vars}} ->
@@ -19,10 +17,10 @@ defmodule AsyncWith.Runner do
         quote do
           fn vars ->
             try do
-              with unquote(var_map(used_vars)) <- vars,
+              with unquote(AsyncWith.Macro.var_map(used_vars)) <- vars,
                    value <- unquote(right),
                    unquote({operator, meta, [left, Macro.var(:value, __MODULE__)]}) do
-                {:ok, unquote(Macro.var(:value, __MODULE__)), unquote(var_map(defined_vars))}
+                {:ok, value, unquote(AsyncWith.Macro.var_map(defined_vars))}
               else
                 error -> {:error, error}
               end
