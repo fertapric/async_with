@@ -55,8 +55,8 @@ defmodule AsyncWith.Clauses do
     @doc """
     Returns the list of used variables in the clause.
 
-    Used variables are the ones at the right-side of the clause or pinned
-    variables at the left-side of the clause.
+    Used variables are the ones at the right hand side of the clause or pinned
+    variables at the left hand side of the clause.
 
     ## Examples
 
@@ -76,7 +76,7 @@ defmodule AsyncWith.Clauses do
     @doc """
     Returns the list of defined variables in the clause.
 
-    Defined variables are the ones binded at the left-side of the clause.
+    Defined variables are the ones binded at the left hand side of the clause.
 
     ## Examples
 
@@ -96,8 +96,8 @@ defmodule AsyncWith.Clauses do
     @doc """
     Renames the used variables in the clause.
 
-    Used variables are the ones at the right-side of the clause or pinned
-    variables at the left-side of the clause.
+    Used variables are the ones at the right hand side of the clause or pinned
+    variables at the left hand side of the clause.
 
     ## Examples
 
@@ -118,7 +118,7 @@ defmodule AsyncWith.Clauses do
     @doc """
     Renames the defined (or binded) variables in the clause.
 
-    Defined variables are the ones binded at the left-side of the clause.
+    Defined variables are the ones binded at the left hand side of the clause.
 
     ## Examples
 
@@ -220,10 +220,10 @@ defmodule AsyncWith.Clauses do
   @doc """
   Returns the list of local variables that are used and defined per clause.
 
-  Used variables are the ones at the right-side of the clause or pinned
-  variables at the left-side of the clause.
+  Used variables are the ones at the right hand side of the clause or pinned
+  variables at the left hand side of the clause.
 
-  Defined variables are the ones binded at the left-side of the clause.
+  Defined variables are the ones binded at the left hand side of the clause.
 
   Local variables are the ones defined in previous clauses, any other variables
   are considered external.
