@@ -3,7 +3,7 @@
     %{
       name: "default",
       files: %{
-        included: ["lib/", "config/", "priv/", "test/"],
+        included: ["lib/", "config/", "test/"],
         excluded: ["/_build", "/deps"]
       },
       requires: [],
@@ -71,7 +71,7 @@
         {Credo.Check.Warning.UnusedRegexOperation},
         {Credo.Check.Warning.UnusedStringOperation},
         {Credo.Check.Warning.UnusedTupleOperation},
-        {Credo.Check.Warning.RaiseInsideRescue, false},
+        {Credo.Check.Warning.RaiseInsideRescue},
       ]
     }
   ]
