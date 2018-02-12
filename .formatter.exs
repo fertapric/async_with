@@ -1,5 +1,5 @@
 [
-  inputs: ["mix.exs", "{config,lib,test}/**/*.{ex,exs}"],
+  inputs: ["mix.exs", ".formatter.exs", "{config,lib,test}/**/*.{ex,exs}"],
   locals_without_parens: [async: 1, async: 2],
   export: [locals_without_parens: [async: 1, async: 2]]
 ]
