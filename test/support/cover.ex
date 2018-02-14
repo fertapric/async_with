@@ -5,10 +5,9 @@ defmodule AsyncWith.Cover do
 
   @doc """
   This method will be called from mix to trigger coverage analysis.
-  The special functions `__info__` and `__struct__` are filtered out of the coverage.
   """
   def start(compile_path, opts) do
-    # Ensure to clear previous :cover result for avoiding duplicated display (umbrella)
+    # Ensure to clear previous :cover result for avoiding duplicated display
     :cover.stop()
     :cover.start()
 
@@ -24,28 +23,71 @@ defmodule AsyncWith.Cover do
     fn ->
       File.mkdir_p!(output)
       Enum.each(modules, &write_coverage_html_file(&1, output))
-
-      case get_coverage(modules) do
-        {0, non_covered} ->
-          IO.puts("Covered 0 lines of #{non_covered} (0%)")
-
-        {covered, non_covered} ->
-          lines = covered + non_covered
-          coverage = Float.round(covered * 100 / lines, 2)
-
-          IO.puts("Covered #{covered} lines of #{lines} (#{coverage}%)")
-      end
+      print_coverage(get_coverage(modules))
     end
+  end
+
+  defp filter_modules(modules, ignore_list) do
+    Enum.reject(modules, &Enum.member?(ignore_list, &1))
   end
 
   defp write_coverage_html_file(module, output) do
     {:ok, _} = :cover.analyse_to_file(module, '#{output}/#{module}.html', [:html])
   end
 
+  defp print_coverage({covered, 0, _modules_coverage}) do
+    IO.puts("Covered #{covered} of #{covered} lines (100%)")
+  end
+
+  defp print_coverage({covered, non_covered, modules_coverage}) do
+    total = covered + non_covered
+    coverage = percentage(covered, total)
+
+    uncovered_modules_coverage =
+      modules_coverage
+      |> Enum.filter(fn {_module, _covered, non_covered, _missing} -> non_covered > 0 end)
+      |> sort_modules_coverage_by_coverage()
+
+    IO.puts("Covered #{covered} of #{total} lines (#{coverage}%). Modules (coverage asc):\n")
+    Enum.each(uncovered_modules_coverage, &print_module_coverage/1)
+    IO.puts("")
+
+    covered_modules_num = length(modules_coverage) - length(uncovered_modules_coverage)
+    if covered_modules_num > 0, do: IO.puts("#{covered_modules_num} modules with 100% coverage")
+  end
+
+  defp sort_modules_coverage_by_coverage(modules_coverage) do
+    Enum.sort(modules_coverage, fn {_, covered_1, non_covered_1, _},
+                                   {_, covered_2, non_covered_2, _} ->
+      total_1 = covered_1 + non_covered_1
+      total_2 = covered_2 + non_covered_2
+      percentage(covered_2, total_2) >= percentage(covered_1, total_1)
+    end)
+  end
+
+  defp print_module_coverage({module, covered, non_covered, missing}) do
+    total = covered + non_covered
+    coverage = percentage(covered, total)
+
+    formatted_coverage =
+      coverage
+      |> :erlang.float_to_binary(decimals: 2)
+      |> String.pad_leading(5)
+
+    formatted_missing =
+      missing
+      |> Enum.uniq()
+      |> Enum.sort()
+      |> Enum.join(", ")
+
+    IO.puts("  #{formatted_coverage}%  #{module}")
+    IO.puts("          Missing lines (#{non_covered}/#{total}): #{formatted_missing}")
+  end
+
   defp get_coverage(modules) when is_list(modules) do
-    Enum.reduce(modules, {0, 0}, fn module, {total_covered, total_non_covered} ->
-      {covered, non_covered} = get_module_coverage(module)
-      {total_covered + covered, total_non_covered + non_covered}
+    Enum.reduce(modules, {0, 0, []}, fn module, {covered, non_covered, modules_coverage} ->
+      {_mod, mod_covered, mod_non_covered, _missing} = mod_coverage = get_module_coverage(module)
+      {covered + mod_covered, non_covered + mod_non_covered, [mod_coverage | modules_coverage]}
     end)
   end
 
@@ -54,13 +96,13 @@ defmodule AsyncWith.Cover do
 
     lines_coverage
     |> remove_hidden_lines()
-    |> Enum.reduce({0, 0}, fn {_, {covered, non_covered}}, {total_covered, total_non_covered} ->
-      {total_covered + covered, total_non_covered + non_covered}
-    end)
-  end
+    |> Enum.reduce({module, 0, 0, []}, fn
+      {{_module, line}, {0, _}}, {module, covered, non_covered, missing} ->
+        {module, covered, non_covered + 1, [line | missing]}
 
-  defp filter_modules(modules, ignore_list) do
-    Enum.reject(modules, &Enum.member?(ignore_list, &1))
+      _line_coverage, {module, covered, non_covered, missing} ->
+        {module, covered + 1, non_covered, missing}
+    end)
   end
 
   defp remove_hidden_lines(lines_coverage) do
@@ -69,4 +111,7 @@ defmodule AsyncWith.Cover do
       _ -> false
     end)
   end
+
+  defp percentage(_covered, 0), do: 0.0
+  defp percentage(dividend, divisor), do: Float.round(dividend * 100 / divisor, 2)
 end
