@@ -41,11 +41,11 @@
 
 ### Deprecations
 
-  * Deprecate `DOT` module.
-  * Deprecate `DependencyGraph` module.
-  * Deprecate `DependencyGraph.Vertex` module.
-  * Deprecate `Macro.DependencyGraph` module.
-  * Deprecate `Macro.OutNeighbours` module.
-  * Deprecate the `Macro.Vertex` module.
-  * Make `Clause` module private.
-  * Make `Macro` module private.
+  * `DOT` is removed.
+  * `DependencyGraph` is removed.
+  * `DependencyGraph.Vertex` is removed.
+  * `Macro.DependencyGraph` is removed.
+  * `Macro.OutNeighbours` is removed.
+  * `Macro.Vertex` is removed.
+  * `Clause` is now private.
+  * `Macro` is now private.
