@@ -2,7 +2,8 @@
 
 [![Build Status](https://travis-ci.org/fertapric/async_with.svg?branch=master)](https://travis-ci.org/fertapric/async_with)
 
-A modifier for `with` to execute all its clauses in parallel.
+The asynchronous version of Elixir's `with`, resolving the dependency graph and executing
+the clauses in the most performant way possible!
 
 ## Installation
 
@@ -23,6 +24,8 @@ $ mix deps.get
 ## Usage
 
 _TL;DR: `use AsyncWith` and just write `async` in front of `with`._
+
+`async with` always executes the right side of each clause inside a new task. Tasks are spawned as soon as all the tasks that it depends on are resolved. In other words, `async with` resolves the dependency graph and executes all the clauses in the most performant way possible. It also ensures that, if a clause does not match, any running task is shut down.
 
 Let's start with an example:
 
@@ -50,8 +53,6 @@ iex> async with {:ok, width} <- Map.fetch(opts, :width),
 :error
 ```
 
-However, using `async with`, the right side of `<-` is always executed inside a new task. As soon as any of the tasks finishes, the task that depends on the previous one will be resolved. In other words, `async with` will solve the dependency graph and write the asynchronous code in the most performant way as possible. It also ensures that, if a clause does not match, any running task is shut down.
-
 In addition, guards can be used in patterns as well:
 
 ```elixir
@@ -64,7 +65,7 @@ iex> async with {:ok, role} when not is_binary(role) <- Map.fetch(users, "bob") 
 :ok
 ```
 
-As in `with/1`, variables bound inside `async with` won't leak; "bare expressions" may also be inserted between the clauses:
+Variables bound inside `async with` won't leak; "bare expressions" may also be inserted between the clauses:
 
 ```elixir
 iex> use AsyncWith
@@ -123,7 +124,7 @@ Documentation is available at https://hexdocs.pm/async_with
 1. calls that have do/end blocks
 2. local calls without parens where the name and arity of the local call is also listed under `:locals_without_parens`
 
-`async with` expressions should fall under the first category, because they are similar to `with/1` calls. This means that `async/2` calls should be kept without parens.
+`async with` expressions should fall under the first category and be kept without parens, because they are similar to `with/1` calls.
 
 This is then the recommended `.formatter.exs` configuration:
 
@@ -161,6 +162,6 @@ $ mix docs
 
 ## Copyright and License
 
-Copyright 2017 Fernando Tapia Rico
+(c) Copyright 2017 Fernando Tapia Rico
 
 AsyncWith source code is licensed under the [MIT License](LICENSE).
