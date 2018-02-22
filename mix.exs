@@ -12,7 +12,7 @@ defmodule AsyncWith.Mixfile do
       deps: deps(),
       package: package(),
       preferred_cli_env: [docs: :docs],
-      description: ~s(A modifier for "with" to execute all its clauses in parallel),
+      description: description(),
       docs: docs(),
       test_coverage: [tool: AsyncWith.Cover, ignore_modules: [AsyncWith.ClauseError]],
       dialyzer: [flags: [:unmatched_returns, :error_handling, :race_conditions, :underspecs]]
@@ -36,6 +36,13 @@ defmodule AsyncWith.Mixfile do
       {:dialyxir, "~> 0.5.1", only: :dev, runtime: false},
       {:ex_doc, "~> 0.18.1", only: :docs}
     ]
+  end
+
+  def description do
+    """
+    The asynchronous version of Elixir's "with", resolving the dependency graph and executing
+    the clauses in the most performant way possible!
+    """
   end
 
   defp package do

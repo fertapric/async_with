@@ -1,6 +1,12 @@
 defmodule AsyncWith do
   @moduledoc ~S"""
-  A modifier for `with` to execute all its clauses in parallel.
+  The asynchronous version of Elixir's `with`.
+
+  `async with` always executes the right side of each clause inside a new task.
+  Tasks are spawned as soon as all the tasks that it depends on are resolved.
+  In other words, `async with` resolves the dependency graph and executes all
+  the clauses in the most performant way possible. It also ensures that, if a
+  clause does not match, any running task is shut down.
 
   ## Example
 
@@ -69,7 +75,13 @@ defmodule AsyncWith do
   end
 
   @doc """
-  Modifies the `with` macro to execute all its clauses in parallel.
+  Used to combine matching clauses, executing them asynchronously.
+
+  `async with` always executes the right side of each clause inside a new task.
+  Tasks are spawned as soon as all the tasks that it depends on are resolved.
+  In other words, `async with` resolves the dependency graph and executes all
+  the clauses in the most performant way possible. It also ensures that, if a
+  clause does not match, any running task is shut down.
 
   Let's start with an example:
 
@@ -90,13 +102,6 @@ defmodule AsyncWith do
       ...> end
       :error
 
-  However, using `async with`, the right side of `<-` is always executed inside a
-  new task. As soon as any of the tasks finishes, the task that depends on the
-  previous one will be resolved. In other words, `async with` will solve the
-  dependency graph and write the asynchronous code in the most performant way as
-  possible. It also ensures that, if a clause does not match, any running task is
-  shut down.
-
   In addition, guards can be used in patterns as well:
 
       iex> users = %{"melany" => "guest", "ed" => :admin}
@@ -105,8 +110,8 @@ defmodule AsyncWith do
       ...> end
       :ok
 
-  As in `with/1`, variables bound inside `async with` won't leak;
-  "bare expressions" may also be inserted between the clauses:
+  Variables bound inside `async with` won't leak; "bare expressions" may also
+  be inserted between the clauses:
 
       iex> width = nil
       iex> opts = %{width: 10, height: 15}
