@@ -1,130 +1,158 @@
 defmodule AsyncWith.Runner do
   @moduledoc false
 
-  alias AsyncWith.Clauses
+  import AsyncWith.Clauses
+  import AsyncWith.Macro, only: [rename_ignored_vars: 1, var_map: 1]
 
   @doc """
-  """
-  @spec format(Macro.t()) :: Macro.t()
-  def format(clauses) do
-    clauses
-    |> Clauses.format_bare_expressions()
-    |> AsyncWith.Macro.rename_ignored_vars()
-    |> Clauses.rename_local_vars()
-    |> Clauses.get_defined_and_used_local_vars()
-    |> Enum.map(fn {{operator, meta, [left, right]}, {defined_vars, used_vars}} ->
-      function_ast =
-        quote do
-          fn vars ->
-            try do
-              with unquote(AsyncWith.Macro.var_map(used_vars)) <- vars,
-                   value <- unquote(right),
-                   unquote({operator, meta, [left, Macro.var(:value, __MODULE__)]}) do
-                {:ok, value, unquote(AsyncWith.Macro.var_map(defined_vars))}
-              else
-                error -> {:error, error}
-              end
-            rescue
-              error in MatchError -> {:match_error, error}
-              error -> {:norescue, error}
-            catch
-              thrown_value -> {:nocatch, thrown_value}
-            end
-          end
-        end
+  Transforms the list of `clauses` into a format that the runner can work with.
 
-      {:%{}, [], [used_vars: used_vars, function: function_ast]}
-    end)
+  The runner expects each clause to be represented by a map with these fields:
+
+    * `:function` - an anonymous function that wraps the clause so it can be
+      executed inside a task.
+
+      It must accept only one argument, a map with the values of the variables
+      used inside the clause. For example, `%{opts: %{width: 10 }}` could be
+      a valid argument for the clause `{:ok, width} <- Map.fetch(opts, :width)`.
+
+      In case of success, it must return a triplet with `:ok`, the value
+      returned by the execution of the right hand side of the clause and a map
+      with the values defined in the left hand side of the clause. For example,
+      the clause `{:ok, width} <- Map.fetch(opts, :width)` with the argument
+      `%{opts: %{width: 10 }}` would return `{:ok, {:ok, 10}, %{width: 10}}`.
+
+      In case of error, it must return `{:error, right_value}` if the sides of
+      the clause do not match using the arrow operator `<-`; `{:nomatch, error}`
+      if the sides of the clause do not match using the match operator `=`;
+      `{:norescue, exception}` if the clause raises any exception; and
+      `{:nocatch, value}` if the clause throws any value.
+
+    * `:deps` - the list of variables that the clause depends on.
+
+  This operation is order dependent.
+
+  It's important to keep in mind that this function is executed at compile time,
+  and that it must return a quoted expression that represents the first argument
+  that will be passed to `run_nolink/2` at runtime.
+  """
+  @spec format_clauses(Macro.t()) :: Macro.t()
+  def format_clauses(clauses) do
+    clauses
+    |> format_bare_expressions()
+    |> rename_ignored_vars()
+    |> rename_local_vars()
+    |> get_defined_and_used_local_vars()
+    |> Enum.map(&format_clause/1)
   end
 
-  def run(clauses, timeout) do
-    task = Task.Supervisor.async_nolink(AsyncWith.TaskSupervisor, fn -> async_with(clauses) end)
+  defp format_clause({clause, {defined_vars, used_vars}}) do
+    function = clause_to_function({clause, {defined_vars, used_vars}})
+    {:%{}, [], [function: function, deps: used_vars]}
+  end
 
-    timeout_exit = {:exit, {:timeout, {AsyncWith, :async, [timeout]}}}
+  defp clause_to_function({{operator, meta, [left, right]}, {defined_vars, used_vars}}) do
+    quote do
+      fn vars ->
+        try do
+          with unquote(var_map(used_vars)) <- vars,
+               value <- unquote(right),
+               unquote({operator, meta, [left, Macro.var(:value, __MODULE__)]}) do
+            {:ok, value, unquote(var_map(defined_vars))}
+          else
+            error -> {:error, error}
+          end
+        rescue
+          error in MatchError -> {:nomatch, error}
+          error -> {:norescue, error}
+        catch
+          thrown_value -> {:nocatch, thrown_value}
+        end
+      end
+    end
+  end
 
-    case Task.yield(task, timeout) || Task.shutdown(task) || timeout_exit do
+  @doc """
+  Executes `run/1` in a supervised task (under `AsyncWith.TaskSupervisor`) and
+  returns the results of the operation.
+
+  The task won’t be linked to the caller, see `Task.async/3` for more
+  information.
+
+  A `timeout`, in milliseconds, must be provided to specify the maximum time
+  allowed for this operation to complete.
+  """
+  @spec run_nolink([map], non_neg_integer) :: {:ok, any} | {:error, any} | {:exit, any}
+  def run_nolink(clauses, timeout) do
+    task = Task.Supervisor.async_nolink(AsyncWith.TaskSupervisor, fn -> run(clauses) end)
+
+    case Task.yield(task, timeout) || Task.shutdown(task) do
+      nil -> {:error, {:exit, {:timeout, {AsyncWith, :async, [timeout]}}}}
       {:ok, value} -> value
       error -> {:error, error}
     end
   end
 
-  # Returns the values of all the variables binded in `clauses`.
-  #
-  # Performs the following steps:
-  #
-  #   1. Spawns a process per each clause whose dependencies are processed.
-  #   2. Waits for replies.
-  #   3. Processes the reply:
-  #       3.1. Removes the clause from the list of clauses to be processed.
-  #       3.2. Updates the current state
-  #   4. Repeats step 1 until all the clauses are processed.
-  #
-  # In case of failure, the error is returned immediately and all the processes are killed.
-  #
-  # ## Examples
-  #
-  #     async with a <- 1,
-  #                b <- a + 2,
-  #                c <- {a, b} do
-  #     end
-  #
-  # In the example above, there are three clauses:
-  #
-  #   * `a <- 1` with no dependencies
-  #   * `b <- a + 2` with a dependency on the variable `a`
-  #   * `c <- {a, b}` with a dependency in both variables `a` and `b`
-  #
-  # The final sequence would be then:
-  #
-  #    1. Initial state:
-  #         - Clauses: [`a <- 1`, `b <- a + 2`, `c <- {a, b}`]
-  #         - Values: []
-  #    2. Spawn `a <- 1` as it does not have dependencies.
-  #    3. Wait for `a <- 1` reply.
-  #    4. Process `a <- 1` reply:
-  #         - Clauses: [`b <- a + 2`, `c <- {a, b}`]
-  #         - Values: [a: 1]
-  #    5. Spawn `b <- a + 2` now that `a` is processed.
-  #    6. Wait for `b <- a + 2` reply.
-  #    7. Process `b <- a + 2` reply:
-  #         - Clauses: [`c <- {a, b}`]
-  #         - Values: [a: 1, b: 3]
-  #    8. Spawn `c <- {a, b}` now that `a` and `b` are processed.
-  #    9. Wait for `c <- {a, b}` reply.
-  #   10. Process `c <- {a, b}` reply:
-  #         - Clauses: []
-  #         - Values: [a: 1, b: 3, c: {1, 3}]
-  #   11. Return [a: 1, b: 3, c: {1, 3}]
-  #
-  @doc false
-  @spec async_with([map], map) :: {:ok, map} | any
-  def async_with(clauses, processed_vars \\ %{}) do
-    case Enum.all?(clauses, &Map.get(&1, :processed, false)) do
-      true ->
-        {:ok, Enum.map(clauses, & &1.value)}
+  @doc """
+  Executes all the `clauses` and collects their results.
 
-      false ->
-        clauses = spawn_tasks(clauses, processed_vars)
-
-        receive do
-          {ref, {:ok, value, vars}} ->
-            Process.demonitor(ref, [:flush])
-            async_with(store_value(clauses, ref, value), Map.merge(processed_vars, vars))
-
-          {_ref, error} ->
-            shutdown_tasks(clauses)
-            error
-
-          {:DOWN, _ref, _, _, reason} ->
-            exit(reason)
-        end
+  Each clause is executed inside a new task. Tasks are spawned as soon as all
+  the variables that it depends on `:deps` are resolved. It also ensures that,
+  if a clause fails, all the running tasks are shut down.
+  """
+  @spec run([map]) :: {:ok, [any]} | {:error | :nomatch | :norescue | :nocatch, any}
+  def run(clauses) do
+    if all_completed?(clauses) do
+      {:ok, Enum.map(clauses, & &1.value)}
+    else
+      clauses
+      |> maybe_spawn_tasks()
+      |> await()
     end
   end
 
-  defp store_value(clauses, ref, value) do
+  defp all_completed?(clauses), do: Enum.all?(clauses, &Map.get(&1, :completed, false))
+
+  defp await(clauses) do
+    receive do
+      {ref, {:ok, value, vars}} ->
+        Process.demonitor(ref, [:flush])
+
+        clauses
+        |> assign_results_and_mark_as_completed(ref, value, vars)
+        |> run()
+
+      {_ref, error} ->
+        shutdown_tasks(clauses)
+        error
+
+      {:DOWN, _ref, _, _, reason} ->
+        exit(reason)
+    end
+  end
+
+  defp maybe_spawn_tasks(clauses) do
+    vars = Enum.reduce(clauses, %{}, &Map.merge(&2, Map.get(&1, :vars, %{})))
+
+    Enum.map(clauses, fn clause ->
+      if spawn_task?(clause, vars) do
+        Map.merge(clause, %{task: Task.async(fn -> clause.function.(vars) end)})
+      else
+        clause
+      end
+    end)
+  end
+
+  defp spawn_task?(%{task: _task}, _vars), do: false
+  defp spawn_task?(%{deps: deps}, vars), do: Enum.empty?(deps -- Map.keys(vars))
+
+  defp assign_results_and_mark_as_completed(clauses, ref, value, vars) do
     Enum.map(clauses, fn
-      %{task: %Task{ref: ^ref}} = clause -> Map.merge(clause, %{processed: true, value: value})
-      clause -> clause
+      %{task: %Task{ref: ^ref}} = clause ->
+        Map.merge(clause, %{value: value, vars: vars, completed: true})
+
+      clause ->
+        clause
     end)
   end
 
@@ -133,24 +161,5 @@ defmodule AsyncWith.Runner do
       %{task: task} -> Task.shutdown(task)
       _ -> nil
     end)
-  end
-
-  # Spawns all the tasks whose dependencies have been processed.
-  defp spawn_tasks(clauses, processed_vars) do
-    Enum.map(clauses, fn clause ->
-      if spawn_task?(clause, processed_vars) do
-        task = Task.async(fn -> clause.function.(processed_vars) end)
-        Map.merge(clause, %{task: task})
-      else
-        clause
-      end
-    end)
-  end
-
-  defp spawn_task?(%{task: _task}, _processed_vars), do: false
-
-  defp spawn_task?(%{used_vars: used_vars}, processed_vars) do
-    # All the dependencies are processed
-    used_vars -- Map.keys(processed_vars) == []
   end
 end

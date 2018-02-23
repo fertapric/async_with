@@ -195,7 +195,7 @@ defmodule AsyncWith.Clauses do
   end
 
   @doc """
-  Formats the list of clauses, converting any "bare expression"
+  Formats the list of `clauses`, converting any "bare expression"
   into an assignment (`_ = expression`).
 
   This operation can be used to normalize clauses, so they are always composed
