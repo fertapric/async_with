@@ -18,8 +18,8 @@
         {Credo.Check.Consistency.SpaceInParentheses},
         {Credo.Check.Consistency.TabsOrSpaces},
 
-        {Credo.Check.Design.AliasUsage, false},
-        {Credo.Check.Design.DuplicatedCode, false},
+        {Credo.Check.Design.AliasUsage},
+        {Credo.Check.Design.DuplicatedCode},
         {Credo.Check.Design.TagTODO, exit_status: 2},
         {Credo.Check.Design.TagFIXME},
 
