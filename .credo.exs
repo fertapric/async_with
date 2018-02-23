@@ -17,12 +17,10 @@
         {Credo.Check.Consistency.SpaceAroundOperators},
         {Credo.Check.Consistency.SpaceInParentheses},
         {Credo.Check.Consistency.TabsOrSpaces},
-
         {Credo.Check.Design.AliasUsage},
         {Credo.Check.Design.DuplicatedCode},
         {Credo.Check.Design.TagTODO, exit_status: 2},
         {Credo.Check.Design.TagFIXME},
-
         {Credo.Check.Readability.FunctionNames},
         {Credo.Check.Readability.LargeNumbers},
         {Credo.Check.Readability.MaxLineLength, priority: :low, max_length: 100},
@@ -40,7 +38,6 @@
         {Credo.Check.Readability.VariableNames},
         {Credo.Check.Readability.Semicolons},
         {Credo.Check.Readability.SpaceAfterCommas},
-
         {Credo.Check.Refactor.ABCSize},
         {Credo.Check.Refactor.AppendSingleItem},
         {Credo.Check.Refactor.DoubleBooleanNegation},
@@ -55,7 +52,6 @@
         {Credo.Check.Refactor.PipeChainStart},
         {Credo.Check.Refactor.UnlessWithElse},
         {Credo.Check.Refactor.VariableRebinding},
-
         {Credo.Check.Warning.BoolOperationOnSameValues},
         {Credo.Check.Warning.IExPry},
         {Credo.Check.Warning.IoInspect},
@@ -71,7 +67,7 @@
         {Credo.Check.Warning.UnusedRegexOperation},
         {Credo.Check.Warning.UnusedStringOperation},
         {Credo.Check.Warning.UnusedTupleOperation},
-        {Credo.Check.Warning.RaiseInsideRescue},
+        {Credo.Check.Warning.RaiseInsideRescue}
       ]
     }
   ]
