@@ -54,6 +54,7 @@ defmodule AsyncWith do
   """
 
   alias AsyncWith.Clauses
+  alias AsyncWith.Runner
 
   @default_timeout 5_000
 
@@ -224,18 +225,19 @@ defmodule AsyncWith do
     raise(CompileError, file: __CALLER__.file, line: __CALLER__.line, description: message)
   end
 
-  # TODO: Explain all the magic here
   defp do_async(module, clauses, do: do_block, else: else_block) do
     # Module attributes can only be defined inside a module.
     # This allows to `use AsyncWith` inside an interactive IEx session.
     timeout = if module, do: quote(do: @async_with_timeout), else: @default_timeout
 
     quote do
-      case AsyncWith.Runner.run(unquote(AsyncWith.Runner.format(clauses)), unquote(timeout)) do
+      case Runner.run_nolink(unquote(Runner.format_clauses(clauses)), unquote(timeout)) do
         {:ok, values} ->
-          with unquote_splicing(change_clauses_to_match_values(clauses)), do: unquote(do_block)
+          with unquote_splicing(change_right_hand_side_of_clauses_to_read_from_values(clauses)) do
+            unquote(do_block)
+          end
 
-        {:match_error, %MatchError{term: term}} ->
+        {:nomatch, %MatchError{term: term}} ->
           raise(MatchError, term: term)
 
         {:norescue, error} ->
@@ -271,13 +273,23 @@ defmodule AsyncWith do
     end
   end
 
-  # TODO: Explain
-  defp change_clauses_to_match_values(clauses) do
+  # Changes the right hand side of each clause to read from the `values`
+  # variable.
+  #
+  # Keeping the left hand side prevents warning messages with variables only
+  # used in guards: `warning: variable "<variable>" is unused`.
+  #
+  #     async with {:ok, level} when level > 4 <- get_security_level(user_id),
+  #                {:ok, data} <- read_secret_data() do
+  #       {:ok, data}
+  #     end
+  #
+  defp change_right_hand_side_of_clauses_to_read_from_values(clauses) do
     {clauses, _index} =
       clauses
       |> Clauses.format_bare_expressions()
       |> Clauses.get_defined_and_used_local_vars()
-      |> Enum.map_reduce(0, fn {{operator, meta, [left, _right]}, {_vars, used_vars}}, index ->
+      |> Enum.map_reduce(0, fn {{operator, meta, [left, _]}, {_defined_vars, used_vars}}, index ->
         # Used variables are passed as the third argument to prevent warning messages
         # with temporary variables: `warning: variable "<variable>" is unused`.
         #
