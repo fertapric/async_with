@@ -3,7 +3,7 @@ defmodule AsyncWith.MacroTest do
 
   doctest AsyncWith.Macro
 
-  test "get_vars/1 ignores {:binary, [], context} (string interpolation)" do
+  test "get_vars/1 ignores the AST for string interpolations" do
     ast = quote(do: {^ok, {^ok, a}, ^b} <- echo("#{c} #{d}"))
 
     assert AsyncWith.Macro.get_vars(ast) == [:ok, :a, :b, :c, :d]
@@ -25,11 +25,11 @@ defmodule AsyncWith.MacroTest do
     refute AsyncWith.Macro.var?({:_, [], nil})
   end
 
-  test "var?/1 returns false with {:binary, [], context} (string interpolation)" do
+  test "var?/1 returns false with the AST for string interpolations" do
     refute AsyncWith.Macro.var?({:binary, [], nil})
   end
 
-  test "map_vars/2 ignores {:binary, [], context} (string interpolation)" do
+  test "map_vars/2 ignores the AST for string interpolations" do
     ast = quote(do: [^a, {1, %{b: "#{c} #{d}"}, [e: ^f]}, _])
     fun = fn {var, meta, context} -> {:"var_#{var}", meta, context} end
 
