@@ -2,8 +2,7 @@
 
 [![Build Status](https://travis-ci.org/fertapric/async_with.svg?branch=master)](https://travis-ci.org/fertapric/async_with)
 
-The asynchronous version of Elixir's `with`, resolving the dependency graph and executing
-the clauses in the most performant way possible!
+The asynchronous version of Elixir's `with`, resolving the dependency graph and executing the clauses in the most performant way possible!
 
 ## Installation
 
