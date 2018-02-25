@@ -161,6 +161,6 @@ $ mix docs
 
 ## Copyright and License
 
-(c) Copyright 2017 Fernando Tapia Rico
+(c) Copyright 2017-2018 Fernando Tapia Rico
 
 AsyncWith source code is licensed under the [MIT License](LICENSE).
