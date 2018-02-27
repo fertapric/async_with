@@ -1,7 +1,7 @@
 defmodule AsyncWith.Mixfile do
   use Mix.Project
 
-  @version "0.2.2"
+  @version "0.3.0"
 
   def project do
     [
@@ -11,7 +11,7 @@ defmodule AsyncWith.Mixfile do
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       package: package(),
-      preferred_cli_env: [docs: :docs],
+      preferred_cli_env: [docs: :docs, "hex.publish": :docs],
       description: description(),
       docs: docs(),
       test_coverage: [tool: AsyncWith.Cover, ignore_modules: [AsyncWith.ClauseError]],
@@ -49,8 +49,7 @@ defmodule AsyncWith.Mixfile do
     [
       maintainers: ["Fernando Tapia Rico"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/fertapric/async_with"},
-      files: ~w(mix.exs LICENSE README.md lib)
+      links: %{"GitHub" => "https://github.com/fertapric/async_with"}
     ]
   end
 

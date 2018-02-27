@@ -1,6 +1,6 @@
 # Changelog
 
-## Current
+## v0.3.0
 
 ### Enhancements
 

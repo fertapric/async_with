@@ -10,7 +10,7 @@ Add `async_with` to your project's dependencies in `mix.exs`:
 
 ```elixir
 def deps do
-  [{:async_with, "~> 0.2"}]
+  [{:async_with, "~> 0.3"}]
 end
 ```
 
