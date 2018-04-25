@@ -1,4 +1,4 @@
-defmodule AsyncWith.Mixfile do
+defmodule AsyncWith.MixProject do
   use Mix.Project
 
   @version "0.3.0"
