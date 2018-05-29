@@ -9,7 +9,7 @@ defmodule AsyncWithTest do
   doctest AsyncWith
 
   test "raises a CompileError error if 'async' is not followed by 'with'" do
-    assert_raise(CompileError, ~r/"async" macro must be used with "with"/, fn ->
+    assert_raise CompileError, ~r/"async" macro must be used with "with"/, fn ->
       ast =
         quote do
           async a <- 1 do
@@ -18,11 +18,11 @@ defmodule AsyncWithTest do
         end
 
       Code.eval_quoted(ast)
-    end)
+    end
   end
 
   test "raises a CompileError error if 'async' is not followed by 'with' (without clauses)" do
-    assert_raise(CompileError, ~r/"async" macro must be used with "with"/, fn ->
+    assert_raise CompileError, ~r/"async" macro must be used with "with"/, fn ->
       ast =
         quote do
           async do
@@ -31,51 +31,51 @@ defmodule AsyncWithTest do
         end
 
       Code.eval_quoted(ast)
-    end)
+    end
   end
 
   test "raises a CompileError error if 'async' is not followed by 'with' (without :do block)" do
-    assert_raise(CompileError, ~r/"async" macro must be used with "with"/, fn ->
+    assert_raise CompileError, ~r/"async" macro must be used with "with"/, fn ->
       ast =
         quote do
           async a <- 1
         end
 
       Code.eval_quoted(ast)
-    end)
+    end
   end
 
   test "raises a CompileError error if 'async' is not followed by 'with' (single line)" do
-    assert_raise(CompileError, ~r/"async" macro must be used with "with"/, fn ->
+    assert_raise CompileError, ~r/"async" macro must be used with "with"/, fn ->
       ast =
         quote do
           async a <- 1, do: a
         end
 
       Code.eval_quoted(ast)
-    end)
+    end
   end
 
   test "raises a CompileError error if :do option is missing" do
-    assert_raise(CompileError, ~r/missing :do option in "async with"/, fn ->
+    assert_raise CompileError, ~r/missing :do option in "async with"/, fn ->
       ast =
         quote do
           async with a <- 1
         end
 
       Code.eval_quoted(ast)
-    end)
+    end
   end
 
   test "raises a CompileError error if :do option is missing (without clauses)" do
-    assert_raise(CompileError, ~r/missing :do option in "async with"/, fn ->
+    assert_raise CompileError, ~r/missing :do option in "async with"/, fn ->
       ast =
         quote do
           async with
         end
 
       Code.eval_quoted(ast)
-    end)
+    end
   end
 
   test "emits a warning if 'else' clauses will never match" do
@@ -514,11 +514,11 @@ defmodule AsyncWithTest do
   end
 
   test "raises MatchError when the sides of a clause does not match" do
-    assert_raise(MatchError, "no match of right hand side value: :error", fn ->
+    assert_raise MatchError, "no match of right hand side value: :error", fn ->
       async with {:ok, a} <- echo("a"), {:ok, b} = error(a) do
         Enum.join([a, b], " ")
       end
-    end)
+    end
   end
 
   test "returns the error if no else conditions are present" do
@@ -607,17 +607,17 @@ defmodule AsyncWithTest do
   end
 
   test "raises AsyncWith.ClauseError when there are not else condition that match the error" do
-    assert_raise(AsyncWith.ClauseError, "no async with clause matching: :error", fn ->
+    assert_raise AsyncWith.ClauseError, "no async with clause matching: :error", fn ->
       async with {:ok, value} <- error() do
         value
       else
         {:error, error} -> error
       end
-    end)
+    end
   end
 
   test "does not override CaseClauseError produced inside of else conditions" do
-    assert_raise(CaseClauseError, "no case clause matching: :error", fn ->
+    assert_raise CaseClauseError, "no case clause matching: :error", fn ->
       async with {:ok, value} <- error() do
         value
       else
@@ -626,11 +626,11 @@ defmodule AsyncWithTest do
             {:error, error} -> error
           end
       end
-    end)
+    end
   end
 
   test "does not override WithClauseError produced inside of else conditions" do
-    assert_raise(WithClauseError, "no with clause matching: :error", fn ->
+    assert_raise WithClauseError, "no with clause matching: :error", fn ->
       async with {:ok, value} <- error() do
         value
       else
@@ -641,7 +641,7 @@ defmodule AsyncWithTest do
             {:error, error} -> error
           end
       end
-    end)
+    end
   end
 
   test "re-throws uncaught values" do
