@@ -1,5 +1,5 @@
 defmodule AsyncWithTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
   use AsyncWith
 
   import ExUnit.CaptureIO
