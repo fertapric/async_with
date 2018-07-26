@@ -333,8 +333,6 @@ defmodule AsyncWith.Clauses do
   end
 
   defp var_versions_to_var_renamings(var_versions) do
-    var_versions
-    |> Enum.map(fn {var, version} -> {var, :"#{var}@#{version}"} end)
-    |> Enum.into(%{})
+    for {var, version} <- var_versions, do: {var, :"#{var}@#{version}"}, into: %{}
   end
 end
