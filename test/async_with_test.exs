@@ -678,7 +678,7 @@ defmodule AsyncWithTest do
                  {:ok, b} <- echo("b"),
                  {:ok, c} <- echo("c"),
                  {:ok, d} <- echo("d(#{a})"),
-                 {:ok, e} <- delay(@async_with_timeout + 10, echo("e(#{b})")),
+                 {:ok, e} <- delayed_echo("e(#{b})", @async_with_timeout + 10),
                  {:ok, f} <- echo("f(#{b})"),
                  {:ok, g} <- echo("g(#{e})") do
         Enum.join([a, b, c, d, e, f, g], " ")
@@ -693,7 +693,7 @@ defmodule AsyncWithTest do
                  {:ok, b} <- echo("b"),
                  {:ok, c} <- echo("c"),
                  {:ok, d} <- echo("d(#{a})"),
-                 {:ok, e} <- delay(@async_with_timeout + 10, echo("e(#{b})")),
+                 {:ok, e} <- delayed_echo("e(#{b})", @async_with_timeout + 10),
                  {:ok, f} <- echo("f(#{b})"),
                  {:ok, g} <- echo("g(#{e})") do
         Enum.join([a, b, c, d, e, f, g], " ")
@@ -729,12 +729,12 @@ defmodule AsyncWithTest do
 
     result =
       async with {:ok, a} <- echo("a"),
-                 {:ok, b} <- delay(10, echo("b(#{a})")),
+                 {:ok, b} <- delayed_echo("b(#{a})", 10),
                  {:ok, c} <- echo("c(#{a})"),
                  {:ok, d} <- error("d(#{b})"),
-                 {:ok, e} <- delay(1_000, {register_pid(agent, :e), "e(#{c})"}),
-                 {:ok, f} <- delay(1_000, {register_pid(agent, :f), "f(#{c})"}),
-                 {:ok, g} <- delay(1_000, {register_pid(agent, :g), "g(#{e})"}) do
+                 {:ok, e} <- {register_pid_and_wait(agent, :e), "e(#{c})"},
+                 {:ok, f} <- {register_pid_and_wait(agent, :f), "f(#{c})"},
+                 {:ok, g} <- {register_pid_and_wait(agent, :g), "g(#{e})"} do
         Enum.join([a, b, c, d, e, f, g], " ")
       end
 
@@ -757,10 +757,10 @@ defmodule AsyncWithTest do
         async with {:ok, a} <- echo("a"),
                    {:ok, b} <- echo("b(#{a})"),
                    {:ok, c} <- echo("c(#{a})"),
-                   {:ok, d} <- delay(1_000, {register_pid(agent, :d), "d(#{b})"}),
-                   {:ok, e} <- delay(1_000, {register_pid(agent, :e), "e(#{c})"}),
-                   {:ok, f} <- raise_oops("f(#{c})"),
-                   {:ok, g} <- delay(1_000, {register_pid(agent, :g), "g(#{e})"}) do
+                   {:ok, d} <- {register_pid_and_wait(agent, :d), "d(#{b})"},
+                   {:ok, e} <- {register_pid_and_wait(agent, :e), "e(#{c})"},
+                   {:ok, f} <- delay(10, fn -> raise_oops("f(#{c})") end),
+                   {:ok, g} <- {register_pid_and_wait(agent, :g), "g(#{e})"} do
           Enum.join([a, b, c, d, e, f, g], " ")
         end
       rescue
@@ -786,10 +786,10 @@ defmodule AsyncWithTest do
         async with {:ok, a} <- echo("a"),
                    {:ok, b} <- echo("b(#{a})"),
                    {:ok, c} <- echo("c(#{a})"),
-                   {:ok, d} <- delay(1_000, {register_pid(agent, :d), "d(#{b})"}),
-                   {:ok, e} <- delay(1_000, {register_pid(agent, :e), "e(#{c})"}),
+                   {:ok, d} <- {register_pid_and_wait(agent, :d), "d(#{b})"},
+                   {:ok, e} <- {register_pid_and_wait(agent, :e), "e(#{c})"},
                    {:ok, f} <- throw("f(#{c})"),
-                   {:ok, g} <- delay(1_000, {register_pid(agent, :g), "g(#{e})"}) do
+                   {:ok, g} <- {register_pid_and_wait(agent, :g), "g(#{e})"} do
           Enum.join([a, b, c, d, e, f, g], " ")
         end
       catch
@@ -813,10 +813,10 @@ defmodule AsyncWithTest do
       async with {:ok, a} <- echo("a"),
                  {:ok, b} <- echo("b(#{a})"),
                  {:ok, c} <- echo("c(#{a})"),
-                 {:ok, d} <- delay(1_000, {register_pid(agent, :d), "d(#{b})"}),
-                 {:ok, e} <- delay(1_000, {register_pid(agent, :e), "e(#{c})"}),
-                 {:ok, f} <- delay(@async_with_timeout + 10, echo("f(#{c})")),
-                 {:ok, g} <- delay(1_000, {register_pid(agent, :g), "g(#{e})"}) do
+                 {:ok, d} <- {register_pid_and_wait(agent, :d), "d(#{b})"},
+                 {:ok, e} <- {register_pid_and_wait(agent, :e), "e(#{c})"},
+                 {:ok, f} <- delayed_echo("f(#{c})", @async_with_timeout + 10),
+                 {:ok, g} <- {register_pid_and_wait(agent, :g), "g(#{e})"} do
         Enum.join([a, b, c, d, e, f, g], " ")
       end
 
@@ -838,10 +838,10 @@ defmodule AsyncWithTest do
       async with {:ok, a} <- echo("a"),
                  {:ok, b} <- echo("b_#{a}_"),
                  {:ok, c} <- echo("c_#{a}_"),
-                 {:ok, d} <- delay(1_000, {register_pid(agent, :d), "d_#{b}_"}),
-                 {:ok, e} <- delay(1_000, {register_pid(agent, :e), "e_#{c}_"}),
+                 {:ok, d} <- {register_pid_and_wait(agent, :d), "d_#{b}_"},
+                 {:ok, e} <- {register_pid_and_wait(agent, :e), "e_#{c}_"},
                  {:ok, f} <- exit(:"f_#{c}_"),
-                 {:ok, g} <- delay(1_000, {register_pid(agent, :g), "g_#{e}_"}) do
+                 {:ok, g} <- {register_pid_and_wait(agent, :g), "g_#{e}_"} do
         Enum.join([a, b, c, d, e, f, g], " ")
       end
 
@@ -860,13 +860,13 @@ defmodule AsyncWithTest do
     started_at = System.system_time(:milliseconds)
 
     result =
-      async with {:ok, a} <- delay(20, echo("a")),
-                 {:ok, b} <- delay(20, echo("b")),
-                 {:ok, c} <- delay(40, echo("c")),
-                 {:ok, d} <- delay(20, echo("d(#{a})")),
-                 {:ok, e} <- delay(40, echo("e(#{b})")),
-                 {:ok, f} <- delay(20, echo("f(#{b})")),
-                 {:ok, g} <- delay(20, echo("g(#{e})")) do
+      async with {:ok, a} <- delayed_echo("a", 20),
+                 {:ok, b} <- delayed_echo("b", 20),
+                 {:ok, c} <- delayed_echo("c", 40),
+                 {:ok, d} <- delayed_echo("d(#{a})", 20),
+                 {:ok, e} <- delayed_echo("e(#{b})", 40),
+                 {:ok, f} <- delayed_echo("f(#{b})", 20),
+                 {:ok, g} <- delayed_echo("g(#{e})", 20) do
         Enum.join([a, b, c, d, e, f, g], " ")
       end
 
@@ -897,7 +897,7 @@ defmodule AsyncWithTest do
 
     result =
       async with {:ok, a} <- echo("a"),
-                 {:ok, b} <- delay(20, echo("b")),
+                 {:ok, b} <- delayed_echo("b", 20),
                  {:ok, c} <- {Agent.update(agent, fn _ -> 1 end), "c(#{a})"},
                  {:ok, d} <- echo("d(#{a}, #{b})") do
         Enum.join([a, b, c, d], " ")
@@ -946,13 +946,18 @@ defmodule AsyncWithTest do
     length(String.split(string, "warning:")) - 1
   end
 
-  defp delay(delay, value) do
+  defp delay(delay, fun) when is_function(fun) do
     :timer.sleep(delay)
-    value
+    fun.()
   end
 
   defp echo(value) do
     {:ok, value}
+  end
+
+  defp delayed_echo(value, delay) do
+    :timer.sleep(delay)
+    echo(value)
   end
 
   defp get_true(_value \\ nil) do
@@ -971,9 +976,15 @@ defmodule AsyncWithTest do
     {:ok, self()}
   end
 
-  defp register_pid(agent, registry_name) do
+  defp register_pid(agent, key) do
     pid = self()
-    Agent.update(agent, &Map.merge(&1, %{registry_name => pid}))
+    Agent.update(agent, &Map.merge(&1, %{key => pid}))
     :ok
+  end
+
+  defp register_pid_and_wait(agent, key) do
+    register_pid(agent, key)
+    # Wait to be killed
+    :timer.sleep(1_000)
   end
 end
