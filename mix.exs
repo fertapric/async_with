@@ -8,13 +8,11 @@ defmodule AsyncWith.MixProject do
       app: :async_with,
       version: @version,
       elixir: "~> 1.4",
-      elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       package: package(),
       preferred_cli_env: [docs: :docs, "hex.publish": :docs],
       description: description(),
       docs: docs(),
-      test_coverage: [tool: AsyncWith.Cover, ignore_modules: [AsyncWith.ClauseError]],
       dialyzer: [flags: [:unmatched_returns, :error_handling, :race_conditions, :underspecs]]
     ]
   end
@@ -25,10 +23,6 @@ defmodule AsyncWith.MixProject do
       mod: {AsyncWith.Application, []}
     ]
   end
-
-  # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
-  defp elixirc_paths(_), do: ["lib"]
 
   defp deps do
     [
