@@ -159,6 +159,10 @@ $ mix test
 $ mix docs
 ```
 
+## Acknowledgements
+
+I would like to express my gratitude to all the people in the [Elixir Core Mailing list](https://groups.google.com/forum/#!forum/elixir-lang-core) who gave ideas and feedback on the early stages of this project. A very special mention to Luke Imhoff ([@KronicDeth](https://github.com/KronicDeth)), Theron Boerner ([@hunterboerner](https://github.com/hunterboerner)), and John Wahba ([@johnwahba](https://github.com/johnwahba)).
+
 ## Copyright and License
 
 (c) Copyright 2017-2018 Fernando Tapia Rico
