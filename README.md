@@ -97,7 +97,7 @@ iex> async with {:ok, width} <- Map.fetch(opts, :width),
 {:error, :wrong_data}
 ```
 
-If there is no matching `else` condition, then a `AsyncWith.ClauseError` exception is raised.
+If an `else` block is used and there are no matching clauses, an `AsyncWith.ClauseError` exception is raised.
 
 Order-dependent clauses that do not express their dependency via their used or defined variables could lead to race conditions, as they are executed in separated tasks:
 
