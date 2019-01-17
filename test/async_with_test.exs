@@ -857,7 +857,7 @@ defmodule AsyncWithTest do
 
   @async_with_timeout 100
   test "optimizes the execution" do
-    started_at = System.system_time(:milliseconds)
+    started_at = System.system_time(:millisecond)
 
     result =
       async with {:ok, a} <- delayed_echo("a", 20),
@@ -880,7 +880,7 @@ defmodule AsyncWithTest do
     #
     # The most time consuming path should be B -> E -> G ~ 400 milliseconds
 
-    finished_at = System.system_time(:milliseconds)
+    finished_at = System.system_time(:millisecond)
 
     assert result == "a b c d(a) e(b) f(b) g(e(b))"
     assert finished_at - started_at < 95
