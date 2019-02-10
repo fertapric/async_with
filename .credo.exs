@@ -38,7 +38,7 @@
         {Credo.Check.Readability.VariableNames},
         {Credo.Check.Readability.Semicolons},
         {Credo.Check.Readability.SpaceAfterCommas},
-        {Credo.Check.Refactor.ABCSize},
+        {Credo.Check.Refactor.ABCSize, max_size: 40},
         {Credo.Check.Refactor.AppendSingleItem},
         {Credo.Check.Refactor.DoubleBooleanNegation},
         {Credo.Check.Refactor.CondStatements},
