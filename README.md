@@ -165,6 +165,6 @@ I would like to express my gratitude to all the people in the [Elixir Core Maili
 
 ## Copyright and License
 
-(c) Copyright 2017-2018 Fernando Tapia Rico
+(c) Copyright 2017-2019 Fernando Tapia Rico
 
 AsyncWith source code is licensed under the [MIT License](LICENSE).
