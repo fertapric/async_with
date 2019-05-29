@@ -82,7 +82,8 @@ defmodule AsyncWith.Runner do
   A `timeout`, in milliseconds, must be provided to specify the maximum time
   allowed for this operation to complete.
   """
-  @spec run_nolink([map], non_neg_integer) :: {:ok, any} | {:error, any} | {:exit, any}
+  @spec run_nolink([map], non_neg_integer) ::
+          {:ok, any} | {:error | :nomatch | :norescue | :nocatch, any}
   def run_nolink(clauses, timeout) do
     task = Task.Supervisor.async_nolink(AsyncWith.TaskSupervisor, fn -> run(clauses) end)
 
