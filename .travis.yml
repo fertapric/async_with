@@ -1,5 +1,7 @@
 language: elixir
 
+dist: trusty
+
 cache:
   directories:
     - _build
