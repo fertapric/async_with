@@ -28,7 +28,7 @@ defmodule AsyncWith.MixProject do
     [
       {:credo, "~> 1.0.0", only: :dev, runtime: false},
       {:dialyxir, "~> 0.5.1", only: :dev, runtime: false},
-      {:ex_doc, "~> 0.21.1", only: :docs}
+      {:ex_doc, "~> 0.22.0", only: :docs}
     ]
   end
 
