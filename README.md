@@ -1,6 +1,6 @@
 # AsyncWith
 
-[![Build Status](https://travis-ci.org/fertapric/async_with.svg?branch=master)](https://travis-ci.org/fertapric/async_with)
+[![Build Status](https://github.com/fertapric/async_with/workflows/CI/badge.svg)](https://github.com/fertapric/async_with/actions?query=workflow%3ACI)
 
 The asynchronous version of Elixir's `with`, resolving the dependency graph and executing the clauses in the most performant way possible!
 

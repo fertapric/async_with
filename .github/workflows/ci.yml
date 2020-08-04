@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  mix_test:
+    name: Tests (Elixir ${{matrix.elixir}} | Erlang/OTP ${{matrix.otp}})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: 1.4.5
+            otp: 18.3.4.11
+          - elixir: 1.5.3
+            otp: 18.3.4.11
+          - elixir: 1.6.6
+            otp: 19.3.6.13
+          - elixir: 1.7.4
+            otp: 19.3.6.13
+          - elixir: 1.8.2
+            otp: 20.3.8.26
+          - elixir: 1.9.4
+            otp: 20.3.8.26
+          - elixir: 1.10.4
+            otp: 21.3.8.17
+          - elixir: 1.10.4
+            otp: 23.0.3
+    steps:
+      - uses: actions/checkout@v2.3.1
+      - uses: actions/setup-elixir@v1.3.0
+        with:
+          otp-version: ${{matrix.otp}}
+          elixir-version: ${{matrix.elixir}}
+      - name: Install Dependencies
+        run: |
+          mix local.hex --force
+          mix deps.get --only test
+      - run: mix test --cover
+
+  check_formatted:
+    name: Check formatted
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.3.1
+      - uses: actions/setup-elixir@v1.3.0
+        with:
+          otp-version: 23.0.3
+          elixir-version: 1.10.4
+      - run: mix format --check-formatted
+
+  compile_without_warnings:
+    name: Compile without warnings on Elixir 1.10.4
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.3.1
+      - uses: actions/setup-elixir@v1.3.0
+        with:
+          otp-version: 23.0.3
+          elixir-version: 1.10.4
+      - name: Install Dependencies
+        run: |
+          mix local.hex --force
+          mix deps.get
+      - run: mix compile --warnings-as-errors
+
+  static_analysis:
+    name: Static analysis (credo & dialyzer)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.3.1
+      - uses: actions/setup-elixir@v1.3.0
+        with:
+          otp-version: 23.0.3
+          elixir-version: 1.10.4
+      - name: Install Dependencies
+        run: |
+          mix local.hex --force
+          mix deps.get
+      - run: mix credo --strict
+      - run: mix dialyzer
