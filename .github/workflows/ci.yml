@@ -82,4 +82,4 @@ jobs:
           mix local.hex --force
           mix deps.get
       - run: mix credo --strict
-      - run: mix dialyzer --halt-exit-status
+      - run: mix dialyzer
