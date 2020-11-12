@@ -878,7 +878,7 @@ defmodule AsyncWithTest do
     #                     ↓
     #                   G(20)
     #
-    # The most time consuming path should be B -> E -> G ~ 400 milliseconds
+    # The most time consuming path should be B -> E -> G ~ 80 milliseconds
 
     finished_at = System.system_time(:millisecond)
 
