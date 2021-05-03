@@ -1,25 +1,7 @@
 version: 2
-registries:
-  hex-organization-accountyn:
-    type: hex-organization
-    organization: accountyn
-    key: "${{secrets.HEX_ORGANIZATION_ACCOUNTYN_KEY}}"
 
 updates:
-- package-ecosystem: mix
-  directory: "/"
-  schedule:
-    interval: daily
-    time: "04:00"
-  open-pull-requests-limit: 10
-  ignore:
-  - dependency-name: ex_doc
-    versions:
-    - 0.23.0
-    - 0.24.0
-    - 0.24.1
-  - dependency-name: credo
-    versions:
-    - 1.5.4
-  registries:
-  - hex-organization-accountyn
+  - package-ecosystem: mix
+    directory: "/"
+    schedule:
+      interval: daily
