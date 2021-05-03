@@ -7,7 +7,7 @@ defmodule AsyncWith.MixProject do
     [
       app: :async_with,
       version: @version,
-      elixir: "~> 1.4",
+      elixir: "~> 1.7",
       deps: deps(),
       package: package(),
       preferred_cli_env: [docs: :docs, "hex.publish": :docs],
