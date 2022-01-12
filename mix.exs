@@ -27,7 +27,7 @@ defmodule AsyncWith.MixProject do
   defp deps do
     [
       {:dialyxir, "~> 1.1", only: [:dev], runtime: false},
-      {:ex_doc, "~> 0.24.2", only: :docs}
+      {:ex_doc, "~> 0.27.3", only: :docs}
     ]
   end
 
